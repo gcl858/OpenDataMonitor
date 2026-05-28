@@ -1,0 +1,89 @@
+name: OpenData Monitor
+
+on:
+
+  # 排程執行
+  schedule:
+    - cron: '15 */6 * * *'
+
+  # 手動執行
+  workflow_dispatch:
+
+    inputs:
+
+      force_send:
+        description: '強制寄送 Email'
+        required: false
+        default: 'false'
+
+      custom_url:
+        description: '自訂 OpenData URL'
+        required: false
+        default: ''
+
+jobs:
+
+  monitor:
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Packages
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Download
+        env:
+          CUSTOM_URL: ${{ github.event.inputs.custom_url }}
+        run: |
+          python scripts/download.py
+
+      - name: Run Compare
+        id: compare
+        run: |
+
+          RESULT=$(python scripts/compare.py)
+
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+      - name: Commit Files
+        if: |
+          steps.compare.outputs.result == 'CHANGED' ||
+          steps.compare.outputs.result == 'FIRST_RUN'
+
+        run: |
+
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git add data/
+          git add logs/
+
+          git commit -m "update opendata $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          git push
+
+      - name: Send Email
+        if: |
+          steps.compare.outputs.result == 'CHANGED' ||
+          github.event.inputs.force_send == 'true'
+
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+
+        run: |
+          python scripts/send_email.py
