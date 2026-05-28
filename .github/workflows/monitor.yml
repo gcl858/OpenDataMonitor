@@ -14,7 +14,7 @@ on:
       force_send:
         description: '強制寄送 Email'
         required: false
-        default: 'false'
+        default: 'true'
 
       custom_url:
         description: '自訂 OpenData URL'
