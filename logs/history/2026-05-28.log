@@ -1,0 +1,6 @@
+2026-05-28 03:24:21,381 [INFO] start download
+2026-05-28 03:24:21,381 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-05-28 03:24:23,572 [INFO] download completed size=1456765
+2026-05-28 03:24:23,976 [INFO] start compare
+2026-05-28 03:24:24,056 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-05-28 03:24:24,056 [INFO] first run
