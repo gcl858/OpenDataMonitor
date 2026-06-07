@@ -11,29 +11,36 @@ DEFAULT_URL = (
     "/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download"
 )
 
-URL = os.environ.get("CUSTOM_URL") or DEFAULT_URL
-
 output = Path("data/latest.csv")
 
-try:
 
-    logger.info("start download")
-    logger.info(f"url={URL}")
+def run_download(url: str = None) -> None:
 
-    response = requests.get(URL, timeout=60)
+    target_url = url or os.environ.get("CUSTOM_URL") or DEFAULT_URL
 
-    response.raise_for_status()
+    try:
 
-    output.parent.mkdir(parents=True, exist_ok=True)
+        logger.info("start download")
+        logger.info(f"url={target_url}")
 
-    output.write_bytes(response.content)
+        response = requests.get(target_url, timeout=60)
 
-    logger.info(
-        f"download completed size={len(response.content)}"
-    )
+        response.raise_for_status()
 
-except Exception as e:
+        output.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.exception(f"download failed: {e}")
+        output.write_bytes(response.content)
 
-    raise
+        logger.info(
+            f"download completed size={len(response.content)}"
+        )
+
+    except Exception as e:
+
+        logger.exception(f"download failed: {e}")
+
+        raise
+
+
+if __name__ == "__main__":
+    run_download()

@@ -1,0 +1,320 @@
+2026-06-07 09:54:21,332 [INFO] start download
+2026-06-07 09:54:21,332 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 09:54:21,834 [INFO] download completed size=1456765
+2026-06-07 09:54:21,835 [INFO] start compare
+2026-06-07 09:54:21,886 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 09:54:21,886 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 09:54:21,886 [INFO] data changed
+2026-06-07 09:54:21,888 [INFO] compare result=CHANGED
+2026-06-07 09:54:21,888 [INFO] start send email
+2026-06-07 09:54:21,888 [ERROR] email failed: 'EMAIL_USER'
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 29, in run_send_email
+    msg["From"] = os.environ["EMAIL_USER"]
+                  ~~~~~~~~~~^^^^^^^^^^^^^^
+  File "<frozen os>", line 685, in __getitem__
+KeyError: 'EMAIL_USER'
+2026-06-07 09:54:21,888 [ERROR] monitor failed: 'EMAIL_USER'
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 36, in <module>
+    main()
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 29, in main
+    run_send_email(new_rows=new_rows)
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 29, in run_send_email
+    msg["From"] = os.environ["EMAIL_USER"]
+                  ~~~~~~~~~~^^^^^^^^^^^^^^
+  File "<frozen os>", line 685, in __getitem__
+KeyError: 'EMAIL_USER'
+2026-06-07 09:57:34,944 [INFO] start download
+2026-06-07 09:57:34,944 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 09:57:35,444 [INFO] download completed size=1456765
+2026-06-07 09:57:35,445 [INFO] start compare
+2026-06-07 09:57:35,503 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 09:57:35,503 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 09:57:35,503 [INFO] data changed
+2026-06-07 09:57:35,505 [INFO] compare result=CHANGED
+2026-06-07 09:57:35,505 [INFO] start send email
+2026-06-07 09:57:35,505 [ERROR] email failed: 'EMAIL_TO'
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 31, in run_send_email
+    msg["To"] = os.environ["EMAIL_TO"]
+                ~~~~~~~~~~^^^^^^^^^^^^
+  File "<frozen os>", line 685, in __getitem__
+KeyError: 'EMAIL_TO'
+2026-06-07 09:57:35,506 [ERROR] monitor failed: 'EMAIL_TO'
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 36, in <module>
+    main()
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 29, in main
+    run_send_email(new_rows=new_rows)
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 31, in run_send_email
+    msg["To"] = os.environ["EMAIL_TO"]
+                ~~~~~~~~~~^^^^^^^^^^^^
+  File "<frozen os>", line 685, in __getitem__
+KeyError: 'EMAIL_TO'
+2026-06-07 10:06:41,272 [INFO] start download
+2026-06-07 10:06:41,272 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:06:41,784 [INFO] download completed size=1456765
+2026-06-07 10:06:41,785 [INFO] start compare
+2026-06-07 10:06:41,836 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:06:41,836 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 10:06:41,836 [INFO] data changed
+2026-06-07 10:06:41,895 [INFO] added rows count=2
+2026-06-07 10:06:41,895 [INFO] added row: {'city': '澎湖縣', 'road': '鼎灣', 'site_id': '澎湖縣湖西鄉'}
+2026-06-07 10:06:41,895 [INFO] added row: {'city': '澎湖縣', 'road': '潭邊', 'site_id': '澎湖縣湖西鄉'}
+2026-06-07 10:06:41,899 [INFO] compare result=CHANGED
+2026-06-07 10:06:41,899 [INFO] start send email
+2026-06-07 10:06:41,899 [INFO] email body includes 2 added rows
+2026-06-07 10:06:44,543 [INFO] email sent
+2026-06-07 10:28:22,267 [INFO] start download
+2026-06-07 10:28:22,267 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:28:22,692 [INFO] download completed size=1456765
+2026-06-07 10:28:22,693 [INFO] start compare
+2026-06-07 10:28:22,744 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:28:22,744 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 10:28:22,744 [INFO] data changed
+2026-06-07 10:28:22,799 [INFO] added rows count=0
+2026-06-07 10:28:22,802 [INFO] compare result=CHANGED
+2026-06-07 10:28:22,802 [INFO] start send email
+2026-06-07 10:28:24,858 [INFO] email sent
+2026-06-07 10:30:55,090 [INFO] start download
+2026-06-07 10:30:55,090 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:30:55,613 [INFO] download completed size=1456765
+2026-06-07 10:30:55,614 [INFO] start compare
+2026-06-07 10:30:55,667 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:30:55,667 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 10:30:55,667 [INFO] data changed
+2026-06-07 10:30:55,721 [INFO] added rows count=0
+2026-06-07 10:30:55,724 [INFO] compare result=CHANGED
+2026-06-07 10:30:55,724 [INFO] start send email
+2026-06-07 10:30:58,050 [INFO] email sent
+2026-06-07 10:31:25,746 [INFO] start download
+2026-06-07 10:31:25,746 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:31:26,206 [INFO] download completed size=1456765
+2026-06-07 10:31:26,207 [INFO] start compare
+2026-06-07 10:31:26,261 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:31:26,262 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 10:31:26,262 [INFO] data changed
+2026-06-07 10:31:26,311 [INFO] added rows count=0
+2026-06-07 10:31:26,314 [INFO] compare result=CHANGED
+2026-06-07 10:31:26,314 [INFO] start send email
+2026-06-07 10:31:28,771 [INFO] email sent
+2026-06-07 10:35:34,436 [INFO] start download
+2026-06-07 10:35:34,436 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:35:34,920 [INFO] download completed size=1456765
+2026-06-07 10:35:34,922 [INFO] start compare
+2026-06-07 10:35:34,975 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:35:34,975 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 10:35:34,975 [INFO] data changed
+2026-06-07 10:35:35,026 [INFO] added rows count=2
+2026-06-07 10:35:35,026 [INFO] added row: {'city': '澎湖縣', 'road': '鼎灣', 'site_id': '澎湖縣湖西鄉'}
+2026-06-07 10:35:35,026 [INFO] added row: {'city': '澎湖縣', 'road': '潭邊', 'site_id': '澎湖縣湖西鄉'}
+2026-06-07 10:35:35,029 [INFO] compare result=CHANGED
+2026-06-07 10:35:35,029 [INFO] start send email
+2026-06-07 10:35:35,030 [INFO] email body includes 2 added rows
+2026-06-07 10:35:37,387 [INFO] email sent
+2026-06-07 10:52:31,220 [INFO] start download
+2026-06-07 10:52:31,220 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:52:31,749 [INFO] download completed size=1456765
+2026-06-07 10:52:31,750 [INFO] start compare
+2026-06-07 10:52:31,831 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:52:31,831 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865d
+2026-06-07 10:52:31,832 [INFO] data changed
+2026-06-07 10:52:31,893 [INFO] added rows count=2
+2026-06-07 10:52:31,893 [INFO] added row: {'city': '澎湖縣', 'road': '鼎灣', 'site_id': '澎湖縣湖西鄉'}
+2026-06-07 10:52:31,893 [INFO] added row: {'city': '澎湖縣', 'road': '潭邊', 'site_id': '澎湖縣湖西鄉'}
+2026-06-07 10:52:31,897 [INFO] compare result=CHANGED
+2026-06-07 10:52:31,897 [INFO] start send email
+2026-06-07 10:52:31,898 [INFO] email body includes 2 added rows
+2026-06-07 10:52:34,157 [INFO] email sent
+2026-06-07 10:52:56,228 [INFO] start download
+2026-06-07 10:52:56,228 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:52:57,281 [INFO] download completed size=1456765
+2026-06-07 10:52:57,283 [INFO] start compare
+2026-06-07 10:52:57,340 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:52:57,340 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:52:57,340 [INFO] no change
+2026-06-07 10:52:57,341 [INFO] compare result=NO_CHANGE
+2026-06-07 10:52:57,341 [INFO] skip send email
+2026-06-07 10:57:43,609 [INFO] start download
+2026-06-07 10:57:43,609 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:57:44,463 [INFO] download completed size=1456765
+2026-06-07 10:57:44,464 [INFO] start compare
+2026-06-07 10:57:44,515 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:57:44,516 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:57:44,516 [INFO] no change
+2026-06-07 10:57:44,517 [INFO] compare result=NO_CHANGE
+2026-06-07 10:57:44,517 [INFO] start send email
+2026-06-07 10:57:46,909 [INFO] email sent
+2026-06-07 10:59:41,531 [INFO] start download
+2026-06-07 10:59:41,531 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 10:59:42,485 [INFO] download completed size=1456765
+2026-06-07 10:59:42,487 [INFO] start compare
+2026-06-07 10:59:42,572 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:59:42,572 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 10:59:42,572 [INFO] no change
+2026-06-07 10:59:42,573 [INFO] compare result=NO_CHANGE
+2026-06-07 10:59:42,573 [INFO] start send email
+2026-06-07 10:59:42,573 [INFO] email body indicates no changes
+2026-06-07 10:59:44,742 [INFO] email sent
+2026-06-07 11:04:41,021 [INFO] start download
+2026-06-07 11:04:41,021 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 11:04:41,551 [INFO] download completed size=1456765
+2026-06-07 11:04:41,552 [INFO] start compare
+2026-06-07 11:04:41,604 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:04:41,604 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:04:41,604 [INFO] no change
+2026-06-07 11:04:41,605 [INFO] compare result=NO_CHANGE
+2026-06-07 11:04:41,605 [INFO] start send email
+2026-06-07 11:04:41,605 [INFO] email body indicates no changes
+2026-06-07 11:04:43,104 [ERROR] email failed: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. d9443c01a7336-2c164f6e2adsm145458145ad.5 - gsmtp')}
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 58, in run_send_email
+    smtp.send_message(msg)
+  File "/usr/lib/python3.12/smtplib.py", line 975, in send_message
+    return self.sendmail(from_addr, to_addrs, flatmsg, mail_options,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/smtplib.py", line 890, in sendmail
+    raise SMTPRecipientsRefused(senderrs)
+smtplib.SMTPRecipientsRefused: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. d9443c01a7336-2c164f6e2adsm145458145ad.5 - gsmtp')}
+2026-06-07 11:04:43,107 [ERROR] monitor failed: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. d9443c01a7336-2c164f6e2adsm145458145ad.5 - gsmtp')}
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 36, in <module>
+    main()
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 29, in main
+    run_send_email(new_rows=new_rows)
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 58, in run_send_email
+    smtp.send_message(msg)
+  File "/usr/lib/python3.12/smtplib.py", line 975, in send_message
+    return self.sendmail(from_addr, to_addrs, flatmsg, mail_options,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/smtplib.py", line 890, in sendmail
+    raise SMTPRecipientsRefused(senderrs)
+smtplib.SMTPRecipientsRefused: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. d9443c01a7336-2c164f6e2adsm145458145ad.5 - gsmtp')}
+2026-06-07 11:06:08,465 [INFO] start download
+2026-06-07 11:06:08,465 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 11:06:09,052 [INFO] download completed size=1456765
+2026-06-07 11:06:09,054 [INFO] start compare
+2026-06-07 11:06:09,104 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:06:09,105 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:06:09,105 [INFO] no change
+2026-06-07 11:06:09,106 [INFO] compare result=NO_CHANGE
+2026-06-07 11:06:09,106 [INFO] start send email
+2026-06-07 11:06:09,106 [INFO] email body indicates no changes
+2026-06-07 11:06:11,306 [ERROR] email failed: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. 5a478bee46e88-3074df349d8sm12565342eec.22 - gsmtp')}
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 58, in run_send_email
+    smtp.send_message(msg)
+  File "/usr/lib/python3.12/smtplib.py", line 975, in send_message
+    return self.sendmail(from_addr, to_addrs, flatmsg, mail_options,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/smtplib.py", line 890, in sendmail
+    raise SMTPRecipientsRefused(senderrs)
+smtplib.SMTPRecipientsRefused: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. 5a478bee46e88-3074df349d8sm12565342eec.22 - gsmtp')}
+2026-06-07 11:06:11,308 [ERROR] monitor failed: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. 5a478bee46e88-3074df349d8sm12565342eec.22 - gsmtp')}
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 36, in <module>
+    main()
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 29, in main
+    run_send_email(new_rows=new_rows)
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 58, in run_send_email
+    smtp.send_message(msg)
+  File "/usr/lib/python3.12/smtplib.py", line 975, in send_message
+    return self.sendmail(from_addr, to_addrs, flatmsg, mail_options,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/smtplib.py", line 890, in sendmail
+    raise SMTPRecipientsRefused(senderrs)
+smtplib.SMTPRecipientsRefused: {'': (555, b'5.5.2 Syntax error, cannot decode response. For more information, go to\n5.5.2  https://support.google.com/a/answer/3221692 and review RFC 5321\n5.5.2 specifications. 5a478bee46e88-3074df349d8sm12565342eec.22 - gsmtp')}
+2026-06-07 11:07:30,566 [INFO] start download
+2026-06-07 11:07:30,566 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 11:07:31,054 [INFO] download completed size=1456765
+2026-06-07 11:07:31,055 [INFO] start compare
+2026-06-07 11:07:31,108 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:07:31,108 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:07:31,108 [INFO] no change
+2026-06-07 11:07:31,109 [INFO] compare result=NO_CHANGE
+2026-06-07 11:07:31,109 [INFO] start send email
+2026-06-07 11:07:31,109 [INFO] email body indicates no changes
+2026-06-07 11:07:32,447 [ERROR] email failed: 'utf8' is an invalid keyword argument for Compat32
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 58, in run_send_email
+    smtp.send_message(msg)
+  File "/usr/lib/python3.12/smtplib.py", line 969, in send_message
+    bytesmsg, policy=msg.policy.clone(utf8=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/email/_policybase.py", line 72, in clone
+    raise TypeError(
+TypeError: 'utf8' is an invalid keyword argument for Compat32
+2026-06-07 11:07:32,448 [ERROR] monitor failed: 'utf8' is an invalid keyword argument for Compat32
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 36, in <module>
+    main()
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 29, in main
+    run_send_email(new_rows=new_rows)
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 58, in run_send_email
+    smtp.send_message(msg)
+  File "/usr/lib/python3.12/smtplib.py", line 969, in send_message
+    bytesmsg, policy=msg.policy.clone(utf8=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/email/_policybase.py", line 72, in clone
+    raise TypeError(
+TypeError: 'utf8' is an invalid keyword argument for Compat32
+2026-06-07 11:13:59,167 [INFO] start download
+2026-06-07 11:13:59,167 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 11:13:59,641 [INFO] download completed size=1456765
+2026-06-07 11:13:59,643 [INFO] start compare
+2026-06-07 11:13:59,695 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:13:59,695 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:13:59,695 [INFO] no change
+2026-06-07 11:13:59,696 [INFO] compare result=NO_CHANGE
+2026-06-07 11:13:59,696 [INFO] start send email
+2026-06-07 11:13:59,696 [INFO] recipients count=2
+2026-06-07 11:13:59,696 [INFO] email body indicates no changes
+2026-06-07 11:14:00,461 [ERROR] email failed: 'utf8' is an invalid keyword argument for Compat32
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 70, in run_send_email
+    smtp.send_message(msg, to_addrs=recipients)
+  File "/usr/lib/python3.12/smtplib.py", line 969, in send_message
+    bytesmsg, policy=msg.policy.clone(utf8=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/email/_policybase.py", line 72, in clone
+    raise TypeError(
+TypeError: 'utf8' is an invalid keyword argument for Compat32
+2026-06-07 11:14:00,462 [ERROR] monitor failed: 'utf8' is an invalid keyword argument for Compat32
+Traceback (most recent call last):
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 36, in <module>
+    main()
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/./scripts/main.py", line 29, in main
+    run_send_email(new_rows=new_rows)
+  File "/media/op/acer_sata/2026_AI_Hack/OpenDataMonitor/scripts/send_email.py", line 70, in run_send_email
+    smtp.send_message(msg, to_addrs=recipients)
+  File "/usr/lib/python3.12/smtplib.py", line 969, in send_message
+    bytesmsg, policy=msg.policy.clone(utf8=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/email/_policybase.py", line 72, in clone
+    raise TypeError(
+TypeError: 'utf8' is an invalid keyword argument for Compat32
+2026-06-07 11:17:31,319 [INFO] start download
+2026-06-07 11:17:31,319 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 11:17:31,742 [INFO] download completed size=1456765
+2026-06-07 11:17:31,744 [INFO] start compare
+2026-06-07 11:17:31,799 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:17:31,799 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:17:31,799 [INFO] no change
+2026-06-07 11:17:31,800 [INFO] compare result=NO_CHANGE
+2026-06-07 11:17:31,800 [INFO] start send email
+2026-06-07 11:17:31,800 [INFO] recipients count=2
+2026-06-07 11:17:31,800 [INFO] email body indicates no changes
+2026-06-07 11:17:34,372 [INFO] email sent
+2026-06-07 11:18:05,569 [INFO] start download
+2026-06-07 11:18:05,570 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-06-07 11:18:06,000 [INFO] download completed size=1456765
+2026-06-07 11:18:06,002 [INFO] start compare
+2026-06-07 11:18:06,054 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:18:06,055 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-06-07 11:18:06,055 [INFO] no change
+2026-06-07 11:18:06,056 [INFO] compare result=NO_CHANGE
+2026-06-07 11:18:06,056 [INFO] start send email
+2026-06-07 11:18:06,056 [INFO] recipients count=1
+2026-06-07 11:18:06,056 [INFO] email body indicates no changes
+2026-06-07 11:18:08,170 [INFO] email sent

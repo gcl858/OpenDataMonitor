@@ -44,24 +44,26 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Run Download
+      - name: Run Monitor
+        id: monitor
         env:
           CUSTOM_URL: ${{ github.event.inputs.custom_url }}
+          FORCE_SEND: ${{ github.event.inputs.force_send }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
-          python scripts/download.py
 
-      - name: Run Compare
-        id: compare
-        run: |
+          cd scripts
 
-          RESULT=$(python scripts/compare.py)
+          RESULT=$(python main.py)
 
           echo "result=$RESULT" >> $GITHUB_OUTPUT
 
       - name: Commit Files
         if: |
-          steps.compare.outputs.result == 'CHANGED' ||
-          steps.compare.outputs.result == 'FIRST_RUN'
+          steps.monitor.outputs.result == 'CHANGED' ||
+          steps.monitor.outputs.result == 'FIRST_RUN'
 
         run: |
 
@@ -74,16 +76,3 @@ jobs:
           git commit -m "update opendata $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
           git push
-
-      - name: Send Email
-        if: |
-          steps.compare.outputs.result == 'CHANGED' ||
-          github.event.inputs.force_send == 'true'
-
-        env:
-          EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
-
-        run: |
-          python scripts/send_email.py
