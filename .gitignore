@@ -1,3 +1,11 @@
 .env
 *.key
 secrets.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Runtime files
+scripts/logs/
+scripts/data/
