@@ -54,9 +54,7 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
 
-          cd scripts
-
-          RESULT=$(python main.py)
+          RESULT=$(python ./scripts/main.py)
 
           echo "result=$RESULT" >> $GITHUB_OUTPUT
 
