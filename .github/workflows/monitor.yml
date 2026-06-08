@@ -2,9 +2,9 @@ name: OpenData Monitor
 
 on:
 
-  # 排程執行
+  # 排程執行 - cron: '15 */6 * * *'
   schedule:
-    - cron: '15 */6 * * *'
+    - cron: '15 0 * * *'
 
   # 手動執行
   workflow_dispatch:
@@ -53,7 +53,7 @@ jobs:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
-
+          export FORCE_SEND=true
           RESULT=$(python ./scripts/main.py)
 
           echo "result=$RESULT" >> $GITHUB_OUTPUT
