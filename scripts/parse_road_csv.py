@@ -110,7 +110,7 @@ def print_table(rows: List[Tuple[int, int, str, str]]) -> None:
     for ad, roc, name, url in rows:
         print(f"{ad:>6}  {roc:>4}  {name:<14}  {url}")
     print("=" * 96)
-    print(f"共 {len(rows)} 個檔案")
+    print(f"共 {len(rows)} 個檔案", flush=True)
 
 
 def main():
