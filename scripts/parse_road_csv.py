@@ -119,6 +119,7 @@ def main():
     html_text = fetch_html(src)
     rows = build_rows(html_text)
     print_table(rows)
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":
