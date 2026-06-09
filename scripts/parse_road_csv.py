@@ -107,7 +107,8 @@ def print_table(rows: List[Tuple[int, int, str, str]]) -> None:
     header = f"{'西元':>6}  {'民國':>4}  {'檔名':<14}  下載連結"
     print(header)
     print("-" * 96)
-    for ad, roc, name, url in rows:
+    # 只取前 3 筆，避免輸出過長
+    for ad, roc, name, url in rows[:3]:
         print(f"{ad:>6}  {roc:>4}  {name:<14}  {url}")
     print("=" * 96)
     print(f"共 {len(rows)} 個檔案", flush=True)
