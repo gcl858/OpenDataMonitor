@@ -1,0 +1,38 @@
+name: OpenData Monitor
+
+#on:
+
+  # 排程執行 - cron: '15 */6 * * *'
+  #schedule:
+  #  - cron: '15 0 * * *'
+
+jobs:
+
+  monitor:
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      #- name: Install Packages
+      #  run: |
+      #    pip install -r requirements.txt
+
+      - name: Run YearList
+        id: yearlist
+        run: |
+          export FORCE_SEND=true
+          RESULT=$(python ./scripts/parse_road_csv.py)
+
+          echo "result=$RESULT" >> $GITHUB_OUTPUT      
