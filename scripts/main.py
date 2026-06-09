@@ -9,7 +9,7 @@ from send_email import run_send_email
 
 def main() -> None:
 
-    # 下載最新資料
+    # 下載最新資料 
     run_download()
 
     # 比對差異
