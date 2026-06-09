@@ -1,6 +1,8 @@
 name: OpenData Monitor
 
-#on:
+on:
+  # 手動執行
+  workflow_dispatch:
 
   # 排程執行 - cron: '15 */6 * * *'
   #schedule:
