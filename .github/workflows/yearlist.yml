@@ -34,9 +34,7 @@ jobs:
       - name: Run YearList
         id: yearlist
         run: |
-          export FORCE_SEND=true
-          RESULT=$(python -u ./scripts/parse_road_csv.py)
-
-          #echo "result=$RESULT" >> $GITHUB_OUTPUT   
+          python -u ./scripts/parse_road_csv.py
+            
         env:
           PYTHONUNBUFFERED: 1   
