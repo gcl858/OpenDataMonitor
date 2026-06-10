@@ -1,6 +1,6 @@
 import os
 import sys
-
+import re
 from logger_util import logger
 from download import run_download
 from compare import run_compare
