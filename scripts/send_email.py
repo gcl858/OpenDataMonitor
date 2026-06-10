@@ -6,9 +6,10 @@ import pandas as pd
 from logger_util import logger
 
 
-def run_send_email(new_rows=None, year_rows=None) -> None:
+def run_send_email(new_rows=None, year_rows=None, year_changed: bool = False) -> None:
     try:
-        logger.info("start send email")
+        has_change = (new_rows is not None and len(new_rows) > 0) or year_changed
+        logger.info(f"start send email has_change={has_change}")
         recipients = [
             addr.strip()
             for addr in os.environ["EMAIL_TO"].split(",")
@@ -27,12 +28,18 @@ def run_send_email(new_rows=None, year_rows=None) -> None:
         for ad, roc, name, url in year_rows[:2]:
             body += f"{name}  {url}\n"
 
+        if year_changed:
+            body += "⚠ 年度列表已更新(本次新增/異動年度檔案)\n"
+
         body += "\n      路名異動比對結果\n"
         body += "===============================\n"
         if new_rows is not None and len(new_rows) > 0:
             body += f"\n新增資料筆數：{len(new_rows)} 筆\n"
             body += new_rows[["city", "site_id", "road"]].to_csv(index=False)
             logger.info(f"email body includes {len(new_rows)} added rows")
+        elif year_changed:
+            body += "本次 CSV 比對無新增路名，但上方年度列表有異動。"
+            logger.info("email body indicates year list changed without csv changes")
         else:
             body += "本次比對無異動。"
             logger.info("email body indicates no changes")
@@ -41,6 +48,8 @@ def run_send_email(new_rows=None, year_rows=None) -> None:
 
         if new_rows is not None and len(new_rows) > 0:
             subject = f"[全國路名監控通知][有異動]新增筆數:{len(new_rows)}"
+        elif year_changed:
+            subject = "[全國路名監控通知][有異動-年度列表]"
         else:
             subject = "[全國路名監控通知][無異動]"
 
@@ -48,6 +57,12 @@ def run_send_email(new_rows=None, year_rows=None) -> None:
         msg["Subject"] = subject
         msg["From"] = os.environ["EMAIL_USER"]
         msg["To"] = ", ".join(recipients)
+
+        if has_change:
+            msg["Importance"] = "High"
+            msg["X-Priority"] = "1"
+            msg["X-MSMail-Priority"] = "High"
+            logger.info("email headers set to High importance")
 
         with smtplib.SMTP_SSL(
             "smtp.gmail.com",

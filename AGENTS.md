@@ -16,9 +16,10 @@ uses only the Python stdlib, and is independent of the monitor pipeline.
 - **`.github/workflows/*.yml`** is the authoritative source for the
   runtime contract (cron, env, steps, commit behavior).
 - **`scripts/main.py`** is the orchestrator called by the monitor workflow.
-  It calls `download.py`, `compare.py`, `parse_road_csv.fetch_html/build_rows`,
-  and `send_email.py`. Each module exposes a `run_*` function. The workflow
-  invokes `main.py` directly — it does **not** call the individual scripts.
+  It calls `download.py`, `compare.py`, `compare_years.py`,
+  `parse_road_csv.fetch_html/build_rows`, and `send_email.py`. Each module
+  exposes a `run_*` function. The workflow invokes `main.py` directly — it
+  does **not** call the individual scripts.
 - **`spec.md` / `README.md`** are kept in sync with the code but stay
   prose-level. When in doubt, read the workflow + the source.
 
@@ -69,8 +70,10 @@ elsewhere.
 workflow as `$RESULT` and written to `$GITHUB_OUTPUT`:
 
 - `FIRST_RUN` — no `data/latest.hash` existed. Workflow commits.
-- `CHANGED`   — MD5 of normalized CSV differs. Workflow commits + emails.
-- `NO_CHANGE` — MD5 matches. Workflow does nothing.
+- `CHANGED`   — MD5 of normalized CSV **or** `year_rows` top-2 differs. Workflow commits + emails.
+- `NO_CHANGE` — neither differs. Workflow does nothing.
+
+### CSV comparison
 
 `compare.py` normalizes the CSV by sorting columns + rows before hashing,
 so row-order or column-order noise in the source does not trigger
@@ -82,9 +85,26 @@ individually (`added row: {...}`) for human review.
 that diff — also untracked, safe to add to `.gitignore` if you want a
 clean `git status` locally.
 
-When `send_email` is called, `main.py` also passes `year_rows` (top 3
-from `parse_road_csv.build_rows()`) which is prepended to the email body
-as a year-list header.
+### year_rows comparison
+
+`compare_years.py` mirrors the same mechanism for the top-2 entries of
+`parse_road_csv.build_rows()`. It serializes the `(name, url)` tuples as JSON,
+MD5-hashes the result, and compares against `data/year_rows.hash` (created on
+first run, rewritten on change). 西元年/民國年 are derived from `name` and
+intentionally excluded from the hash. When `year_rows` changes but the CSV
+does not, `main.py` promotes `result` to `CHANGED` so the existing workflow
+commit logic still fires — no workflow change required.
+
+### Email subject & headers
+
+`main.py` passes `year_rows` (top 2) and a `year_changed: bool` to
+`run_send_email`. The subject becomes `[有異動]新增筆數:N` when only the CSV
+diff is non-empty, `[有異動-年度列表]` when only the year list differs, and
+`[無異動]` when neither has changed. Whenever **any** change is present
+(CSV or year list), the email carries `Importance: High` + `X-Priority: 1` +
+`X-MSMail-Priority: High` headers so Outlook / Gmail flag it as urgent. The
+body adds a `⚠ 年度列表已更新` line right under the year-list header when
+`year_changed` is true.
 
 ## GitHub Actions setup
 
