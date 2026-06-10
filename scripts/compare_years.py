@@ -17,7 +17,7 @@ from typing import List, Optional, Tuple
 
 from logger_util import logger
 
-hash_file = Path("data/year_rows.hash")
+
 
 
 def _normalize_top2(year_rows: List[Tuple[int, int, str, str]]) -> str:
@@ -33,6 +33,7 @@ def _normalize_top2(year_rows: List[Tuple[int, int, str, str]]) -> str:
 def run_compare_years(
     year_rows: List[Tuple[int, int, str, str]],
 ) -> tuple[str, Optional[List[Tuple[int, int, str, str]]]]:
+    hash_file = Path("data/year_rows.hash")
     try:
         logger.info("start compare years")
 
