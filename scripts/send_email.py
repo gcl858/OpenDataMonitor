@@ -28,22 +28,23 @@ def run_send_email(new_rows=None, year_rows=None) -> None:
         logger.info(f"recipients count={len(recipients)}")
 
         body = ""
-        # 只取year_rows前 3 筆，避免輸出過長
-        for ad, roc, name, url in year_rows[:3]:
-            body += f"{ad}年 ({roc}年) - {name} {url}\n"
+        body += "\n     全國路名最新2年度列表\n"
+        body += "===========================================\n"
+        # 只取year_rows前 2 筆，避免輸出過長
+        for ad, roc, name, url in year_rows[:2]:
+            body += f"{name}  {url}\n"
 
+        body += "\n          路名異動比對結果\n"
+        body += "===========================================\n"
         if new_rows is not None and len(new_rows) > 0:
-
-            body += f"\n\n新增資料筆數：{len(new_rows)} 筆\n\n"
-
+            body += f"\n新增資料筆數：{len(new_rows)} 筆\n"
             body += new_rows[["city", "site_id", "road"]].to_csv(index=False)
-
             logger.info(f"email body includes {len(new_rows)} added rows")
         else:
-
             body += "本次比對無異動。"
-
             logger.info("email body indicates no changes")
+
+        body += "\n\n"
 
         if new_rows is not None and len(new_rows) > 0:
 
