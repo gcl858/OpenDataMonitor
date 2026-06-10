@@ -33,25 +33,25 @@ def _normalize_top2(year_rows: List[Tuple[int, int, str, str]]) -> str:
 def run_compare_years(
     year_rows: List[Tuple[int, int, str, str]],
 ) -> tuple[str, Optional[List[Tuple[int, int, str, str]]]]:
-    hash_file = Path("data/year_rows.hash")
+    yearhash_file = Path("data/year_rows.hash")
     try:
         logger.info("start compare years")
 
         current_hash = _normalize_top2(year_rows)
         logger.info(f"current year hash={current_hash}")
 
-        if not hash_file.exists():
+        if not yearhash_file.exists():
             logger.info("first run (year_rows)")
-            hash_file.parent.mkdir(parents=True, exist_ok=True)
-            hash_file.write_text(current_hash, encoding="utf-8")
+            yearhash_file.parent.mkdir(parents=True, exist_ok=True)
+            yearhash_file.write_text(current_hash, encoding="utf-8")
             return "YEAR_FIRST_RUN", year_rows[:2]
 
-        old_hash = hash_file.read_text(encoding="utf-8").strip()
+        old_hash = yearhash_file.read_text(encoding="utf-8").strip()
         logger.info(f"old year hash={old_hash}")
 
         if old_hash != current_hash:
             logger.info("year_rows changed")
-            hash_file.write_text(current_hash, encoding="utf-8")
+            yearhash_file.write_text(current_hash, encoding="utf-8")
             return "YEAR_CHANGED", year_rows[:2]
 
         logger.info("year_rows no change")

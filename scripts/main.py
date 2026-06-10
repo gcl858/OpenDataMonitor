@@ -34,10 +34,13 @@ def main() -> None:
     logger.info(f"year status={year_status}")
 
     # 若 year 變動但 CSV 沒變,合併為 CHANGED 以觸發 workflow commit
-    if year_changed and result == "NO_CHANGE":
+    if year_changed or result == "CHANGED":
         result = "CHANGED"
         logger.info("promote result to CHANGED due to year_rows change")
-
+    elif year_status=="YEAR_FIRST_RUN" or result == "FIRST_RUN":
+        result = "FIRST_RUN"
+        logger.info("first run detected")        
+    
     # 輸出結果供 GitHub Actions GITHUB_OUTPUT 捕捉
     print(result)
 
