@@ -1,20 +1,14 @@
 import os
 import smtplib
-
 import email.policy
 from email.mime.text import MIMEText
-
 import pandas as pd
-
 from logger_util import logger
 
 
 def run_send_email(new_rows=None, year_rows=None) -> None:
-
     try:
-
         logger.info("start send email")
-
         recipients = [
             addr.strip()
             for addr in os.environ["EMAIL_TO"].split(",")
@@ -22,7 +16,6 @@ def run_send_email(new_rows=None, year_rows=None) -> None:
         ]
 
         if not recipients:
-
             raise ValueError("EMAIL_TO 解析後沒有有效收件人")
 
         logger.info(f"recipients count={len(recipients)}")
@@ -47,19 +40,13 @@ def run_send_email(new_rows=None, year_rows=None) -> None:
         body += "\n\n"
 
         if new_rows is not None and len(new_rows) > 0:
-
             subject = f"[全國路名監控通知][有異動]新增筆數:{len(new_rows)}"
-
         else:
-
             subject = "[全國路名監控通知][無異動]"
 
         msg = MIMEText(body, _charset="utf-8", policy=email.policy.default)
-
         msg["Subject"] = subject
-
         msg["From"] = os.environ["EMAIL_USER"]
-
         msg["To"] = ", ".join(recipients)
 
         with smtplib.SMTP_SSL(
