@@ -28,20 +28,28 @@
 
 ```text
 GitHub Actions
-    ├─ 排程觸發 (cron 15 */6 * * *)
-    └─ 手動觸發 (workflow_dispatch)
+    ├─ monitor workflow (cron 15 0 * * * + workflow_dispatch)
+    │       ↓
+    │   scripts/main.py            ← monitor workflow 唯一入口
+    │       ↓
+    │       ├─ download.run_download()        → data/latest.csv
+    │       ├─ compare.run_compare()          → 列印 FIRST_RUN | CHANGED | NO_CHANGE
+    │       ├─ parse_road_csv.fetch_html()    → 取得 dataset/35321 HTML
+    │       ├─ parse_road_csv.build_rows()    → (西元,民國,檔名,URL) 清單
+    │       └─ send_email.run_send_email()    → 僅在 CHANGED 或 FORCE_SEND=true 時寄信
+    │
+    └─ yearlist workflow (workflow_dispatch only)
             ↓
-scripts/main.py            ← workflow 唯一入口
-    ↓
-    ├─ download.run_download()        → data/latest.csv
-    ├─ compare.run_compare()          → 列印 FIRST_RUN | CHANGED | NO_CHANGE
-    └─ send_email.run_send_email()    → 僅在 CHANGED 或 FORCE_SEND=true 時寄信
-            ↓
-stdout 結果（$RESULT）
-    ├─ FIRST_RUN → Commit
-    ├─ CHANGED   → Commit + Email
-    └─ NO_CHANGE → 略過
+        scripts/parse_road_csv.py   ← 單獨執行，列出歷年 CSV 下載連結
 ```
+
+`monitor` workflow 對 stdout 的結果合約（`$RESULT`）：
+
+| 輸出        | 動作               |
+| ----------- | ------------------ |
+| `FIRST_RUN` | Commit             |
+| `CHANGED`   | Commit + Email     |
+| `NO_CHANGE` | 略過               |
 
 ---
 
@@ -52,26 +60,28 @@ OpenDataMonitor/
 │
 ├── .github/
 │   └── workflows/
-│       └── monitor.yml
+│       ├── monitor.yml          ← 監控主流程（排程 + 手動）
+│       └── yearlist.yml         ← 年度清單（僅手動）
 │
 ├── data/
-│   ├── latest.csv          ← 最新下載的原始 CSV（Git 保存歷史）
-│   ├── latest.hash         ← normalize 後的 MD5
-│   └── previous.csv        ← 上次下載的原始副本（供 diff 用，本機）
+│   ├── latest.csv               ← 最新下載的原始 CSV（Git 保存歷史）
+│   ├── latest.hash              ← normalize 後的 MD5
+│   └── previous.csv             ← 上次下載的原始副本（供 diff 用，本機 untracked）
 │
 ├── logs/
 │   └── history/
 │       ├── 2026-05-28.log
-│       ├── 2026-05-29.log
+│       ├── 2026-06-07.log
 │       └── ...
 │
 ├── scripts/
-│   ├── main.py             ← 編排器
-│   ├── download.py
-│   ├── compare.py
-│   ├── send_email.py
-│   ├── logger_util.py
-│   └── __pycache__/        ← Python 自動產生
+│   ├── main.py                  ← monitor 編排器
+│   ├── download.py              ← 下載 OpenData
+│   ├── compare.py               ← MD5 比對 + 新增列
+│   ├── send_email.py            ← Gmail 通知（多收件人 + 年度清單內文）
+│   ├── parse_road_csv.py        ← 解析 dataset/35321 頁面（stdlib only）
+│   ├── logger_util.py           ← 共用 logger
+│   └── __pycache__/             ← Python 自動產生（被 .gitignore 涵蓋）
 │
 ├── requirements.txt
 ├── README.md
@@ -173,7 +183,7 @@ logger = logging.getLogger("opendata-monitor")
 
 # main.py（編排器）
 
-`scripts/main.py` 是 workflow 唯一呼叫的腳本，串接下載 → 比對 → 寄信。
+`scripts/main.py` 是 monitor workflow 唯一呼叫的腳本，串接下載 → 比對 → 解析年度清單 → 寄信。
 
 ```python
 import os
@@ -183,21 +193,32 @@ from logger_util import logger
 from download import run_download
 from compare import run_compare
 from send_email import run_send_email
+from parse_road_csv import fetch_html, build_rows
+
+URL = "https://data.gov.tw/dataset/35321"
 
 
 def main() -> None:
+    # 下載最新資料
     run_download()
+
+    # 比對差異
     result, new_rows = run_compare()
     logger.info(f"compare result={result}")
 
     # 輸出結果供 GitHub Actions GITHUB_OUTPUT 捕捉
     print(result)
 
+    # 判斷是否寄信
     force_send = os.environ.get("FORCE_SEND", "false").lower() == "true"
     should_send = result == "CHANGED" or force_send
 
+    # 取得年度清單（信件內文抬頭用）
+    html_text = fetch_html(URL)
+    year_rows = build_rows(html_text)
+
     if should_send:
-        run_send_email(new_rows=new_rows)
+        run_send_email(new_rows=new_rows, year_rows=year_rows)
     else:
         logger.info("skip send email")
 
@@ -275,6 +296,7 @@ if __name__ == "__main__":
 * 對 CSV 做 normalize（排序欄位、列）
 * 算 MD5 並比對 `data/latest.hash`
 * 在變更時，計算 `previous.csv` → `latest.csv` 的新增列
+* 逐列 log 新增的 row（便於人工追查）
 * 列印 `FIRST_RUN` / `CHANGED` / `NO_CHANGE`
 
 ```python
@@ -293,19 +315,25 @@ previous_file = Path("data/previous.csv")
 
 
 def _find_added_rows() -> Optional[pd.DataFrame]:
+    """回傳新 CSV 中有、舊 CSV 中沒有的資料列。"""
     if not previous_file.exists():
         return None
     try:
         old_df = pd.read_csv(previous_file).sort_index(axis=1)
         new_df = pd.read_csv(latest_file).sort_index(axis=1)
+
+        # 以 left merge + indicator 找出新增列
         merged = new_df.merge(old_df, how="left", indicator=True)
         added = (
             merged[merged["_merge"] == "left_only"]
             .drop(columns=["_merge"])
             .reset_index(drop=True)
         )
-        logger.info(f"added rows count={len(added)}")
-        return added if len(added) > 0 else None
+        count = len(added)
+        logger.info(f"added rows count={count}")
+        for _, row in added.iterrows():
+            logger.info(f"added row: {row.to_dict()}")
+        return added if count > 0 else None
     except Exception as e:
         logger.exception(f"find added rows failed: {e}")
         return None
@@ -326,23 +354,28 @@ def run_compare() -> tuple[str, Optional[pd.DataFrame]]:
             hash_file.write_text(current_hash)
             shutil.copy2(latest_file, previous_file)
             return "FIRST_RUN", None
-
-        old_hash = hash_file.read_text().strip()
-        logger.info(f"old hash={old_hash}")
-
-        if old_hash != current_hash:
-            logger.info("data changed")
-            added_rows = _find_added_rows()
-            hash_file.write_text(current_hash)
-            shutil.copy2(latest_file, previous_file)
-            return "CHANGED", added_rows
-
-        logger.info("no change")
-        return "NO_CHANGE", None
-
+        else:
+            old_hash = hash_file.read_text().strip()
+            logger.info(f"old hash={old_hash}")
+            if old_hash != current_hash:
+                logger.info("data changed")
+                added_rows = _find_added_rows()
+                hash_file.write_text(current_hash)
+                shutil.copy2(latest_file, previous_file)
+                return "CHANGED", added_rows
+            else:
+                logger.info("no change")
+                return "NO_CHANGE", None
     except Exception as e:
         logger.exception(f"compare failed: {e}")
         raise
+
+
+if __name__ == "__main__":
+    result, added = run_compare()
+    print(result)
+    if added is not None:
+        print(added.to_string())
 ```
 
 每次成功比對後都會 `shutil.copy2(latest_file, previous_file)`，
@@ -355,22 +388,40 @@ def run_compare() -> tuple[str, Optional[pd.DataFrame]]:
 用途：
 
 * 透過 Gmail SMTP 寄送通知
-* 若有新增列，內文嵌入 `city / site_id / road` 表格
+* `EMAIL_TO` 以逗號區隔多收件人，逐一帶入 SMTP
+* 內文抬頭嵌入 `year_rows` 前 3 筆（西元年/民國年/檔名/下載 URL）
+* 若有新增列，再嵌入 `city / site_id / road` 表格
 * 依是否異動切換主旨
+* 使用 `email.policy.default` 確保 UTF-8 主旨正確編碼
 
 ```python
 import os
 import smtplib
+import email.policy
 from email.mime.text import MIMEText
+
 import pandas as pd
 
 from logger_util import logger
 
 
-def run_send_email(new_rows=None) -> None:
+def run_send_email(new_rows=None, year_rows=None) -> None:
     try:
         logger.info("start send email")
+
+        recipients = [
+            addr.strip()
+            for addr in os.environ["EMAIL_TO"].split(",")
+            if addr.strip()
+        ]
+        if not recipients:
+            raise ValueError("EMAIL_TO 解析後沒有有效收件人")
+        logger.info(f"recipients count={len(recipients)}")
+
         body = ""
+        # 只取 year_rows 前 3 筆，避免輸出過長
+        for ad, roc, name, url in year_rows[:3]:
+            body += f"{ad}年 ({roc}年) - {name} {url}\n"
 
         if new_rows is not None and len(new_rows) > 0:
             body += f"\n\n新增資料筆數：{len(new_rows)} 筆\n\n"
@@ -382,14 +433,14 @@ def run_send_email(new_rows=None) -> None:
             subject = "[全國路名監控通知][無異動]"
             logger.info("email body indicates no changes")
 
-        msg = MIMEText(body)
+        msg = MIMEText(body, _charset="utf-8", policy=email.policy.default)
         msg["Subject"] = subject
         msg["From"]    = os.environ["EMAIL_USER"]
-        msg["To"]      = os.environ["EMAIL_TO"]
+        msg["To"]      = ", ".join(recipients)
 
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(os.environ["EMAIL_USER"], os.environ["EMAIL_PASS"])
-            smtp.send_message(msg)
+            smtp.send_message(msg, to_addrs=recipients)
 
         logger.info("email sent")
 
@@ -397,6 +448,101 @@ def run_send_email(new_rows=None) -> None:
         logger.exception(f"email failed: {e}")
         raise
 ```
+
+---
+
+# parse_road_csv.py
+
+用途：
+
+* 抓取 [data.gov.tw/dataset/35321](https://data.gov.tw/dataset/35321) 頁面
+* 從 `<script type="application/ld+json">` 內的 `schema.org/Dataset.distribution[*].contentUrl`
+  抽出所有年度的全國路名 CSV 下載連結
+* 對映到「XXX全國路名資料」檔名以取得民國年度
+* 依西元年由新到舊排序，輸出 `(西元年, 民國年, 檔名, URL)` 清單
+* **僅使用 Python 標準庫**（`urllib`、`re`、`json`、`html.unescape`、`typing`），
+  不需安裝 `pandas` / `requests`
+
+```python
+import json
+import re
+import sys
+import urllib.request
+from html import unescape
+from typing import List, Tuple
+
+URL = "https://data.gov.tw/dataset/35321"
+DATASET_ID = "E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C"
+UUID_RE = re.compile(r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+NAME_RE = re.compile(r'"(\d{3})全國路名資料"')
+BASE = f"https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/{DATASET_ID}/resource/"
+
+
+def fetch_html(source: str) -> str:
+    """從 URL 或本地路徑取得 HTML 內容。"""
+    if source.startswith("http://") or source.startswith("https://"):
+        req = urllib.request.Request(
+            source,
+            headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.read().decode("utf-8", errors="replace")
+    with open(source, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def parse_distribution(html_text: str) -> List[str]:
+    """從 JSON-LD 抽出 distribution[*].contentUrl。"""
+    m = re.search(
+        r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',
+        html_text,
+        re.S,
+    )
+    if not m:
+        raise RuntimeError("找不到 JSON-LD 區塊")
+    payload = json.loads(unescape(m.group(1)))
+    if isinstance(payload, list):
+        dataset = next((x for x in payload if x.get("@type") == "Dataset"), payload[0])
+    else:
+        dataset = payload
+    return [d["contentUrl"] for d in dataset.get("distribution", [])]
+
+
+def parse_year_map(html_text: str) -> dict:
+    """把每個 resource UUID 對到「XXX全國路名資料」檔名（XXX 為民國年度）。"""
+    pairs = {}
+    for m in re.finditer(r"/resource/(" + UUID_RE.pattern + r")/download", html_text):
+        u = m.group(1)
+        near = html_text[max(0, m.start() - 400): m.end() + 400]
+        nm = NAME_RE.search(near)
+        if nm:
+            pairs[u] = f"{nm.group(1)}全國路名資料"
+    return pairs
+
+
+def build_rows(html_text: str) -> List[Tuple[int, int, str, str]]:
+    """組合 (西元年, 民國年, 檔名, 下載URL) 清單，依西元年新→舊排序。"""
+    urls = parse_distribution(html_text)
+    year_map = parse_year_map(html_text)
+    rows = []
+    for url in urls:
+        m = re.search(r"/resource/(" + UUID_RE.pattern + r")/download", url)
+        if not m:
+            continue
+        u = m.group(1)
+        name = year_map.get(u, f"(未知年度){u[:8]}")
+        roc = int(name[:3])
+        ad = roc + 1911
+        rows.append((ad, roc, name, url))
+    rows.sort(key=lambda x: -x[0])
+    return rows
+```
+
+被呼叫方式：
+
+* `scripts/main.py` 內 `from parse_road_csv import fetch_html, build_rows`，
+  把前 3 筆嵌入 `send_email` 內文
+* `yearlist.yml` workflow 直接 `python -u ./scripts/parse_road_csv.py` 執行
 
 ---
 
@@ -437,9 +583,9 @@ GitHub Actions
 | ------------- | ------------ | ------------------------------------------------------------------- |
 | `EMAIL_USER`  | 寄信時必填    | Gmail 帳號                                                          |
 | `EMAIL_PASS`  | 寄信時必填    | Gmail App Password（16 碼）                                        |
-| `EMAIL_TO`    | 寄信時必填    | 收件人 Email（可多個以逗號區隔）                                  |
-| `CUSTOM_URL`  | 選填         | 覆蓋 OpenData 下載 URL                                              |
-| `FORCE_SEND`  | 選填         | `"true"` 強制寄信（即使 `NO_CHANGE`）。`main.py` 預設 `"false"`；workflow_dispatch 預設 `"true"` |
+| `EMAIL_TO`    | 寄信時必填    | 收件人 Email；以逗號區隔多個（例：`a@x.com,b@x.com`），`send_email.py` 會 split + strip |
+| `CUSTOM_URL`  | 選填         | 覆蓋 OpenData 下載 URL（`download.run_download()` 內 `os.environ.get("CUSTOM_URL")` 讀取） |
+| `FORCE_SEND`  | 選填         | `"true"` 強制寄信（即使 `NO_CHANGE`）。`main.py` 預設 `"false"`；workflow_dispatch 預設 `"true"`。⚠ `monitor.yml` 內另有 `export FORCE_SEND=true` 強制覆寫（見下方「行為細節」） |
 
 ---
 
@@ -467,14 +613,22 @@ GitHub 官方提供 encrypted secrets。
 
 # GitHub Actions Workflow
 
-## 完整 Workflow（與 `monitor.yml` 同步）
+專案有兩個 workflow：
+
+| Workflow        | 觸發                | 入口                     | 用途                                   |
+| --------------- | ------------------- | ------------------------ | -------------------------------------- |
+| `monitor.yml`   | cron + 手動          | `scripts/main.py`        | 下載、比對、寄信、auto-commit          |
+| `yearlist.yml`  | 僅手動              | `scripts/parse_road_csv.py` | 列出 dataset/35321 歷年 CSV 下載連結 |
+
+## 完整 monitor workflow（與 `monitor.yml` 同步）
 
 ```yaml
 name: OpenData Monitor
 
 on:
+  # 排程執行 - cron: '15 */6 * * *'   ← 註解標示原始意圖
   schedule:
-    - cron: '15 */6 * * *'
+    - cron: '15 0 * * *'             # 實際值：每日 UTC 00:15
 
   workflow_dispatch:
     inputs:
@@ -514,8 +668,8 @@ jobs:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO:   ${{ secrets.EMAIL_TO }}
         run: |
-          cd scripts
-          RESULT=$(python main.py)
+          export FORCE_SEND=true          # ⚠ 覆寫 workflow_dispatch 輸入
+          RESULT=$(python ./scripts/main.py)
           echo "result=$RESULT" >> $GITHUB_OUTPUT
 
       - name: Commit Files
@@ -531,33 +685,64 @@ jobs:
           git push
 ```
 
-## Workflow 與本機執行的 CWD 落差
+## 完整 yearlist workflow（與 `yearlist.yml` 同步）
 
-Workflow 在 `Run Monitor` 步驟做了 `cd scripts`，讓 CWD 變成 `scripts/`。
-但 `scripts/` 內所有路徑都是 `Path("data/...")`、`Path("logs/...")`，
-是相對於 CWD 的，所以：
+```yaml
+name: Year List CSV
 
-* workflow 寫入 `scripts/data/latest.csv`、`scripts/logs/history/...`
-* 而非 repo 根目錄的 `data/`、`logs/`
+on:
+  workflow_dispatch:                  # 僅手動觸發（cron 已註解）
 
-目前 `data/` 與 `logs/history/` 的檔案是過去從 repo 根目錄本機執行留下的。
-若 workflow 確實在 `scripts/` 下執行，後續 `git add data/` 步驟也只會
-add 根目錄的 `data/`（不會 add 到 `scripts/data/`），導致寫入與提交
-位置不一致。建議修正方式：把 `Run Monitor` 步驟的 `cd scripts` 拿掉。
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run YearList
+        id: yearlist
+        env:
+          PYTHONUNBUFFERED: 1
+        run: python -u ./scripts/parse_road_csv.py
+```
+
+此 workflow 不安裝套件（`parse_road_csv.py` 僅用 stdlib），也不寫入 `data/`、
+不發送 Email、不 commit。
+
+## CWD 約定
+
+workflow 在 `Run Monitor` 步驟**不**做 `cd scripts`，而是直接
+`python ./scripts/main.py`，CWD 維持在 repo 根目錄。
+這與 `scripts/` 內所有 `Path("data/...")`、`Path("logs/...")` 相對路徑一致，
+也與 `git add data/`、`git add logs/` 的相對路徑一致。
+
+> 早期版本曾有 `cd scripts`，會把資料寫入 `scripts/data/`，並讓
+> `git add data/` 抓不到變更；此問題已在目前 workflow 修正。
 
 ## 排程觸發
 
 ```yaml
 schedule:
-  - cron: '15 */6 * * *'
+  - cron: '15 0 * * *'
 ```
 
 代表：
 
 ```text
-每 6 小時執行一次
-於第 15 分開始
+每日 UTC 00:15 執行一次
 ```
+
+> 註解 `# 排程執行 - cron: '15 */6 * * *'` 是早期意圖的紀錄，
+> 實際排程為每日一次。如要恢復每 6 小時執行，請把 cron 改回 `15 */6 * * *` 並同步文件。
 
 ### 為什麼避免整點
 
@@ -568,7 +753,7 @@ GitHub Actions 在：
 30 分
 ```
 
-容易排隊 delay。建議改用偏移分鐘（`15`、`23`、`37`）降低排隊機率。
+容易排隊 delay。`15` 是常見的偏移分鐘，能降低排隊機率。
 
 ## 手動觸發
 
@@ -592,10 +777,10 @@ Actions
 
 ### workflow_dispatch Inputs
 
-| Input      | 預設    | 功能           |
-| ---------- | ------ | ------------ |
-| force_send | `true` | 即使無變更也寄信 |
-| custom_url | `""`   | 臨時測試資料源   |
+| Input      | 預設    | 功能           | 備註 |
+| ---------- | ------ | ------------ | ---- |
+| force_send | `true` | 即使無變更也寄信 | ⚠ `Run Monitor` 步驟有 `export FORCE_SEND=true` 覆寫，目前輸入實際無作用 |
+| custom_url | `""`   | 臨時測試資料源   | 直接傳入 `CUSTOM_URL` env，會被 `download.run_download()` 讀取 |
 
 ### GitHub CLI 手動執行
 
@@ -622,6 +807,26 @@ gh workflow run monitor.yml -f custom_url=https://example.gov/data.csv
 * `CHANGED`：一定寄
 * `NO_CHANGE` + `FORCE_SEND=true`：寄（信件標記「無異動」、內文「本次比對無異動。」）
 * `NO_CHANGE` + `FORCE_SEND` 未設定或為 `false`：不寄
+
+> ⚠ **現實**：monitor workflow 內 `Run Monitor` 步驟含有 `export FORCE_SEND=true`，
+> 會覆蓋掉來自 `workflow_dispatch.inputs.force_send` 的值。
+> 因此 `force_send` 輸入目前是無作用的；`NO_CHANGE` 時 workflow 仍會寄出「無異動」通知。
+> 若要恢復輸入控制權，請移除 `export FORCE_SEND=true` 那一行。
+
+## 信件內文組成
+
+`run_send_email(new_rows, year_rows)` 會把內文組裝成：
+
+1. **抬頭**：`year_rows` 前 3 筆，每行格式 `<西元年>年 (<民國年>年) - <檔名> <URL>`
+2. **差異段**（僅 `new_rows` 非空時）：
+   * `新增資料筆數：<N> 筆`
+   * 內嵌 `city,site_id,road` 三欄的 CSV
+3. **無異動段**（`new_rows` 為空時）：`本次比對無異動。`
+
+主旨：
+
+* 有異動：`[全國路名監控通知][有異動]新增筆數:<N>`
+* 無異動：`[全國路名監控通知][無異動]`
 
 ## 新增列格式
 
@@ -654,15 +859,18 @@ city,site_id,road
 
 ```text
 2026-06-07 02:15:01 [INFO] start download
+2026-06-07 02:15:01 [INFO] url=https://opdadm.moi.gov.tw/...
 2026-06-07 02:15:03 [INFO] download completed size=1458000
 2026-06-07 02:15:03 [INFO] start compare
 2026-06-07 02:15:03 [INFO] current hash=1111aaaa
 2026-06-07 02:15:03 [INFO] old hash=2222bbbb
 2026-06-07 02:15:03 [INFO] data changed
 2026-06-07 02:15:03 [INFO] added rows count=2
-2026-06-07 02:15:03 [INFO] added row: {...}
+2026-06-07 02:15:03 [INFO] added row: {'city': '澎湖縣', 'road': '鼎灣', 'site_id': '澎湖縣湖西鄉'}
+2026-06-07 02:15:03 [INFO] added row: {'city': '澎湖縣', 'road': '潭邊', 'site_id': '澎湖縣湖西鄉'}
 2026-06-07 02:15:03 [INFO] compare result=CHANGED
 2026-06-07 02:15:03 [INFO] start send email
+2026-06-07 02:15:03 [INFO] recipients count=1
 2026-06-07 02:15:03 [INFO] email body includes 2 added rows
 2026-06-07 02:15:05 [INFO] email sent
 ```
@@ -714,12 +922,27 @@ Git 保存：
 secrets.json
 ```
 
-可考慮額外加入（避免 local dev `git status` 雜訊）：
+目前 repo 的 `.gitignore`：
 
 ```gitignore
-data/previous.csv
-scripts/__pycache__/
+.env
+*.key
+secrets.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Runtime files
+scripts/logs/
+scripts/data/
 ```
+
+* `__pycache__/` 已涵蓋 — 不需要再加 `scripts/__pycache__/`
+* `scripts/logs/`、`scripts/data/` 規則目前無作用（CWD-relative 路徑實際寫到
+  repo 根目錄的 `data/`、`logs/`，不是 `scripts/data/`、`scripts/logs/`）
+* `data/previous.csv` 未被忽略（untracked 仍會出現在 `git status`）；
+  如希望本機 `git status` 更乾淨，可手動加入 `data/previous.csv`
 
 ## 不要 print secrets
 

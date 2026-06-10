@@ -5,6 +5,13 @@ from logger_util import logger
 from download import run_download
 from compare import run_compare
 from send_email import run_send_email
+from parse_road_csv import fetch_html, build_rows
+
+URL = "https://data.gov.tw/dataset/35321"
+DATASET_ID = "E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C"
+UUID_RE = re.compile(r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+NAME_RE = re.compile(r'"(\d{3})全國路名資料"')
+BASE = f"https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/{DATASET_ID}/resource/"
 
 
 def main() -> None:
@@ -25,8 +32,11 @@ def main() -> None:
 
     should_send = result == "CHANGED" or force_send
 
+    html_text = fetch_html(URL)
+    year_rows = build_rows(html_text)
+
     if should_send:
-        run_send_email(new_rows=new_rows)
+        run_send_email(new_rows=new_rows, year_rows=year_rows)
     else:
         logger.info("skip send email")
 

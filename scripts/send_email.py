@@ -9,7 +9,7 @@ import pandas as pd
 from logger_util import logger
 
 
-def run_send_email(new_rows=None) -> None:
+def run_send_email(new_rows=None, year_rows=None) -> None:
 
     try:
 
@@ -28,6 +28,9 @@ def run_send_email(new_rows=None) -> None:
         logger.info(f"recipients count={len(recipients)}")
 
         body = ""
+        # 只取year_rows前 3 筆，避免輸出過長
+        for ad, roc, name, url in year_rows[:3]:
+            body += f"{ad}年 ({roc}年) - {name} {url}\n"
 
         if new_rows is not None and len(new_rows) > 0:
 

@@ -4,46 +4,63 @@
 
 ## 功能
 
-- 每 6 小時自動下載 OpenData（114 全國路名資料）
+- 排程自動下載 OpenData（114 全國路名資料）
 - MD5 Hash 比對 normalize 後的 CSV，偵測資料異動
 - 資料有異動時自動 Git commit & push，並寄送含有「新增列」清單的 Email
 - 首次執行（沒有 hash 檔）時直接 commit
 - 支援手動觸發、強制寄信、臨時替換下載 URL
+- 額外提供「年度清單」workflow，從 [data.gov.tw/dataset/35321](https://data.gov.tw/dataset/35321) 解析歷年 CSV 下載連結
 
 ## 目錄結構
 
 ```
-.github/workflows/monitor.yml   # GitHub Actions workflow
+.github/workflows/
+  monitor.yml                    # 監控主流程（排程 + 手動觸發）
+  yearlist.yml                   # 列出 dataset/35321 歷年 CSV 連結（手動觸發）
 scripts/
-  logger_util.py                # 共用 logger
-  main.py                       # 編排器（workflow 唯一入口）
-  download.py                   # 下載 OpenData
-  compare.py                    # MD5 比對 + 找出新增列
-  send_email.py                 # Gmail 通知
-  __pycache__/                  # Python 自動產生（未追蹤）
+  logger_util.py                 # 共用 logger
+  main.py                        # 編排器（monitor workflow 唯一入口）
+  download.py                    # 下載 OpenData
+  compare.py                     # MD5 比對 + 找出新增列
+  send_email.py                  # Gmail 通知
+  parse_road_csv.py              # 解析 data.gov.tw 年度清單（stdlib only）
+  __pycache__/                   # Python 自動產生（.gitignore 已涵蓋）
 data/
-  latest.csv                    # 最新資料（Git 保存歷史）
-  latest.hash                   # 上次 normalize 後的 MD5
-  previous.csv                  # 上次下載的原始副本（供 diff 用）
+  latest.csv                     # 最新資料（Git 保存歷史）
+  latest.hash                    # 上次 normalize 後的 MD5
+  previous.csv                   # 上次下載的原始副本（供 diff 用）
 logs/
-  history/<YYYY-MM-DD>.log      # 每日執行 log
+  history/<YYYY-MM-DD>.log       # 每日執行 log
 requirements.txt
 ```
 
 ## 架構
 
-`scripts/main.py` 是唯一入口，依序呼叫各模組的 `run_*` 函式：
+### monitor workflow（資料監控）
+
+`scripts/main.py` 是 monitor workflow 的唯一入口，依序呼叫各模組的 `run_*` 函式：
 
 ```
 main.py
-  ├─ download.run_download()       → data/latest.csv
-  ├─ compare.run_compare()         → 列印 FIRST_RUN | CHANGED | NO_CHANGE
-  └─ send_email.run_send_email()   → 僅在 CHANGED 或 FORCE_SEND=true 時寄信
+  ├─ download.run_download()              → data/latest.csv
+  ├─ compare.run_compare()                → 列印 FIRST_RUN | CHANGED | NO_CHANGE
+  ├─ parse_road_csv.fetch_html/build_rows → 取得年度清單（用於信件內文）
+  └─ send_email.run_send_email()          → 僅在 CHANGED 或 FORCE_SEND=true 時寄信
 ```
 
 `compare` 在 `CHANGED` 時會比對 `data/previous.csv`（上一次的本機副本）與新的
 `data/latest.csv`，以 `merge(..., indicator=True)` 找出新增列，傳給 `send_email`
-嵌入信件內文。
+嵌入信件內文。`send_email` 會把 `year_rows` 的前 3 筆（西元年 / 民國年 / 檔名 / URL）
+附加在信件最前面，方便對照。
+
+### yearlist workflow（年度清單）
+
+`scripts/parse_road_csv.py` 抓取 [data.gov.tw/dataset/35321](https://data.gov.tw/dataset/35321) 頁面：
+1. 解析 `<script type="application/ld+json">` 內的 `schema.org/Dataset.distribution[*].contentUrl`
+2. 對映到每個 resource 的「XXX全國路名資料」檔名（XXX 為民國年度）
+3. 依西元年由新到舊排序輸出
+
+僅使用 Python 標準庫（`urllib`、`re`、`json`、`html.unescape`），無需額外相依套件。
 
 ## 環境需求
 
@@ -62,8 +79,8 @@ python scripts/main.py
 > `Path("logs/...")`，相對於 CWD。必須從 repo 根目錄執行，不能從
 > `scripts/` 內執行。
 >
-> `scripts/__pycache__/` 在第一次執行後會自動生成，未列入 `.gitignore`，
-> 會出現在 `git status` 視為 untracked。可視需要加入 `.gitignore`。
+> `scripts/__pycache__/` 在第一次執行後會自動生成，已被根目錄的
+> `.gitignore` 規則 `__pycache__/` 涵蓋，不會出現在 `git status`。
 
 ## 環境變數
 
@@ -72,8 +89,8 @@ python scripts/main.py
 | `EMAIL_USER`  | 寄信時必填    | Gmail 帳號（`xxx@gmail.com`）                                        |
 | `EMAIL_PASS`  | 寄信時必填    | Gmail **App Password**（16 碼），不是帳號密碼。需先啟用兩步驟驗證。   |
 | `EMAIL_TO`    | 寄信時必填    | 收件人 Email，可多個以逗號區隔（例：`a@x.com,b@x.com`）                |
-| `CUSTOM_URL`  | 選填         | 覆蓋 OpenData 下載 URL（也可從 workflow_dispatch 的 `custom_url` 輸入） |
-| `FORCE_SEND`  | 選填         | `"true"` 即使無異動也寄信。`main.py` 預設 `"false"`，workflow 預設 `"true"`。 |
+| `CUSTOM_URL` | 選填         | 覆蓋 OpenData 下載 URL（也可從 workflow_dispatch 的 `custom_url` 輸入） |
+| `FORCE_SEND` | 選填         | `"true"` 即使無異動也寄信。`main.py` 預設 `"false"`，workflow 預設 `"true"`（但 monitor.yml 內另有 `export FORCE_SEND=true` 強制覆寫，詳見「行為細節」）。 |
 
 ## GitHub Secrets 設定
 
@@ -104,7 +121,34 @@ python scripts/main.py
 | `NO_CHANGE` | MD5 相同                                            | 略過            |
 
 `compare.py` 會先把 CSV 對欄位、行做排序後再算 MD5，因此來源端欄位順序或
-列序的雜訊不會誤觸變更通知。
+列序的雜訊不會誤觸變更通知。`CHANGED` 時還會逐列 log 新增的 row。
+
+## 行為細節
+
+### 排程實際為每日一次
+
+`monitor.yml` 內的 cron 是 `15 0 * * *`（每日 UTC 00:15），
+不是 README 過去寫的「每 6 小時」。如需更密集排程，請同步更新 workflow 與文件。
+
+### `FORCE_SEND` 在 workflow 內被強制覆寫
+
+`monitor.yml` 的 `Run Monitor` 步驟含有：
+
+```yaml
+run: |
+  export FORCE_SEND=true
+  RESULT=$(python ./scripts/main.py)
+```
+
+這行 `export FORCE_SEND=true` 會覆蓋掉來自 `workflow_dispatch.inputs.force_send` 的值，
+因此 `force_send` 輸入參數實際上是**無作用**的，workflow 永遠會在
+`NO_CHANGE` 時也寄出「無異動」通知。如要恢復 `force_send` 輸入的控制權，
+請把這行 `export` 拿掉。
+
+### `email_to` 多收件人
+
+`EMAIL_TO` 以逗號區隔多個收件人；`send_email.py` 會 split + strip 後逐一帶入 SMTP，
+避免字串中含逗號導致 Gmail 視為單一無效地址。
 
 ## 手動觸發
 
@@ -114,15 +158,15 @@ python scripts/main.py
 Actions → OpenData Monitor → Run workflow
 ```
 
-| Input        | 預設     | 說明                                         |
-| ------------ | -------- | -------------------------------------------- |
-| `force_send` | `true`   | 強制寄送 Email（即使無異動）                 |
-| `custom_url` | `""`     | 臨時替換下載來源 URL                         |
+| Input        | 預設     | 說明                                         | 備註 |
+| ------------ | -------- | -------------------------------------------- | ---- |
+| `force_send` | `true`   | 強制寄送 Email（即使無異動）                 | ⚠ workflow 另有 `export FORCE_SEND=true` 覆寫，此輸入目前不生效 |
+| `custom_url` | `""`     | 臨時替換下載來源 URL                         | —    |
 
 > `force_send` 在 `main.py` 內的預設是 `"false"`，但 workflow YAML 的
-> `workflow_dispatch` 預設是 `"true"`。手動觸發時兩者都會傳到 `FORCE_SEND`
-> 環境變數，最後一個被 GitHub Actions 設定的值才是有效值（手動觸發時以
-> workflow 為準）。
+> `workflow_dispatch` 預設是 `"true"`，且 `Run Monitor` 步驟還有
+> `export FORCE_SEND=true` 強制覆寫；目前後者勝出。如要讓 `force_send`
+> 輸入真的可控制，請拿掉該 `export` 行。
 
 ### GitHub CLI
 
@@ -130,12 +174,22 @@ Actions → OpenData Monitor → Run workflow
 # 一般觸發
 gh workflow run monitor.yml
 
-# 強制發信
+# 強制發信（注意：仍會被 workflow 內的 export 覆寫為 true）
 gh workflow run monitor.yml -f force_send=true
 
 # 使用自訂 URL
 gh workflow run monitor.yml -f custom_url=https://example.gov/data.csv
 ```
+
+## 年度清單 workflow
+
+```
+Actions → Year List CSV → Run workflow
+```
+
+僅 `workflow_dispatch` 觸發（無排程），用於列出
+[dataset/35321](https://data.gov.tw/dataset/35321) 頁面上所有年度的全國路名 CSV
+下載連結。執行時不需要 Secrets，僅相依 Python 標準庫。
 
 ## 安全注意事項
 
