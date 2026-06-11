@@ -25,7 +25,8 @@ def main() -> None:
     logger.info(f"year status={year_status}")
 
     # 取出最新年度的下載網址,未來可自動帶入 run_download 以免手動更新
-    last_year_csv_url = year_rows[0].csv_url if year_rows else None
+    # build_rows() 回傳 List[Tuple[int, int, str, str]] = (西元年, 民國年, 檔名, URL)
+    last_year_csv_url = year_rows[0][3] if year_rows else None
     logger.info(f"last year csv url={last_year_csv_url}")
 
     # 下載最新資料
