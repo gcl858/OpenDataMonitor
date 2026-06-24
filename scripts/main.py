@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import traceback
 from logger_util import logger
 from download import run_download
 from compare import run_compare
@@ -18,11 +19,20 @@ BASE = f"https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/{DATASET_
 def main() -> None:
 
     # 解析年度列表並比對差異
-    html_text = fetch_html(URL)
-    year_rows = build_rows(html_text)
-    year_status, _ = run_compare_years(year_rows)
-    year_changed = year_status == "YEAR_CHANGED"
-    logger.info(f"year status={year_status}")
+    # 任何例外都要攔下,容存入 year_error 供 email 內文使用,避免主流程中斷
+    year_rows: list | None = None
+    year_changed = False
+    year_error: str | None = None
+    year_status = "YEAR_SKIPPED"
+    try:
+        html_text = fetch_html(URL)
+        year_rows = build_rows(html_text)
+        year_status, _ = run_compare_years(year_rows)
+        year_changed = year_status == "YEAR_CHANGED"
+        logger.info(f"year status={year_status}")
+    except Exception as e:
+        year_error = traceback.format_exc()
+        logger.exception(f"year parse/compare failed: {e}")
 
     # 取出最新年度的下載網址,未來可自動帶入 run_download 以免手動更新
     # build_rows() 回傳 List[Tuple[int, int, str, str]] = (西元年, 民國年, 檔名, URL)
@@ -50,13 +60,15 @@ def main() -> None:
     # 判斷是否寄信
     force_send = os.environ.get("FORCE_SEND", "false").lower() == "true"
 
-    should_send = result == "CHANGED" or force_send
+    should_send = result == "CHANGED" or force_send or year_error is not None
+    logger.info(f"should_send={should_send} (result={result}, force_send={force_send}, year_error={year_error is not None})")
 
     if should_send:
         run_send_email(
             new_rows=new_rows,
             year_rows=year_rows,
             year_changed=year_changed,
+            year_error=year_error,
         )
     else:
         logger.info("skip send email")

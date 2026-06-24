@@ -2,14 +2,24 @@ import os
 import smtplib
 import email.policy
 from email.mime.text import MIMEText
+from typing import Optional, List, Tuple
 import pandas as pd
 from logger_util import logger
 
 
-def run_send_email(new_rows=None, year_rows=None, year_changed: bool = False) -> None:
+def run_send_email(
+    new_rows=None,
+    year_rows: Optional[List[Tuple[int, int, str, str]]] = None,
+    year_changed: bool = False,
+    year_error: Optional[str] = None,
+) -> None:
     try:
-        has_change = (new_rows is not None and len(new_rows) > 0) or year_changed
-        logger.info(f"start send email has_change={has_change}")
+        has_change = (
+            (new_rows is not None and len(new_rows) > 0)
+            or year_changed
+            or year_error is not None
+        )
+        logger.info(f"start send email has_change={has_change} year_error={year_error is not None}")
         recipients = [
             addr.strip()
             for addr in os.environ["EMAIL_TO"].split(",")
@@ -22,11 +32,22 @@ def run_send_email(new_rows=None, year_rows=None, year_changed: bool = False) ->
         logger.info(f"recipients count={len(recipients)}")
 
         body = ""
+
+        if year_error:
+            body += "\n     ⚠ 年度清單解析失敗\n"
+            body += "===============================\n"
+            body += "本次未取得年度清單，例外資訊如下：\n\n"
+            body += year_error
+            body += "\n"
+
         body += "\n     全國路名最新2年度列表\n"
         body += "===============================\n"
         # 只取year_rows前 2 筆，避免輸出過長
-        for ad, roc, name, url in year_rows[:2]:
-            body += f"{name}  {url}\n"
+        if year_rows:
+            for ad, roc, name, url in year_rows[:2]:
+                body += f"{name}  {url}\n"
+        else:
+            body += "(本次未取得年度清單)\n"
 
         if year_changed:
             body += "⚠ 年度列表已更新(本次新增/異動年度檔案)\n"
@@ -50,6 +71,8 @@ def run_send_email(new_rows=None, year_rows=None, year_changed: bool = False) ->
             subject = f"[全國路名監控通知][有異動]新增筆數:{len(new_rows)}"
         elif year_changed:
             subject = "[全國路名監控通知][有異動-年度列表]"
+        elif year_error:
+            subject = "[全國路名監控通知][⚠ 年度清單解析失敗]"
         else:
             subject = "[全國路名監控通知][無異動]"
 

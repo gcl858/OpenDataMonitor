@@ -4,10 +4,16 @@
 
 資料來源結構（從實際抓回的 HTML 觀察得到）：
   - <head> 內有一段 JSON-LD (schema.org/Dataset.distribution)，
-    列出 10 個 CSV 的 contentUrl，順序與頁面「檔案下載」區塊一致。
-  - 頁面 Vue 渲染資料中，每個 resource 都帶一個 "XXX全國路名資料" 的
-    name 標籤，前 3 碼就是民國年度。
-  - dataset 識別碼 E2EDC47D-... 是固定的，resource UUID 才是各年度檔案。
+    列出 11 個 resource 的 contentUrl（10 個 opdadm.moi.gov.tw 的 CSV
+    + 1 個外部 ris.gov.tw 的 JSON）。
+  - 頁面 Vue 渲染時，每個 resource 都是一個 <li class="resource-item">，
+    裡面同時含 <a href=".../resource/<UUID>/download"> 與
+    <span>XXX全國路名資料</span>。把兩者放在同一個 li 區塊內配對，
+    比「±N 字元內找最近字串」穩健很多。
+  - 舊版頁面會把 resource name 序列化成 JSON 字串（雙引號包裹），
+    新版改成直接 DOM 文字節點渲染，導致原本 r'"(\d{3})全國路名資料"'
+    全部 miss → name 落入 default → int("(未知") 爆炸。
+    解法：放棄字串層比對，改從 DOM 結構解析。
 
 執行：
   python3 parse_road_csv.py            # 直接抓網路頁面解析
@@ -24,7 +30,8 @@ from typing import List, Tuple
 URL = "https://data.gov.tw/dataset/35321"
 DATASET_ID = "E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C"
 UUID_RE = re.compile(r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
-NAME_RE = re.compile(r'"(\d{3})全國路名資料"')
+ITEM_RE = re.compile(r'<li class="resource-item"[^>]*>(.*?)</li>', re.S)
+NAME_IN_ITEM_RE = re.compile(r'>(\d{3})全國路名資料<')
 BASE = f"https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/{DATASET_ID}/resource/"
 
 
@@ -44,7 +51,7 @@ def fetch_html(source: str) -> str:
 def parse_distribution(html_text: str) -> List[str]:
     """
     從 <script type="application/ld+json"> 內的 schema.org/Dataset JSON
-    抽出 distribution[*].contentUrl 清單。
+    抽出 distribution[*].contentUrl 清單（依頁面顯示順序）。
     """
     m = re.search(
         r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',
@@ -54,7 +61,6 @@ def parse_distribution(html_text: str) -> List[str]:
     if not m:
         raise RuntimeError("找不到 JSON-LD 區塊")
     payload = json.loads(unescape(m.group(1)))
-    # 取第一個 Dataset 物件
     if isinstance(payload, list):
         dataset = next((x for x in payload if x.get("@type") == "Dataset"), payload[0])
     else:
@@ -65,24 +71,30 @@ def parse_distribution(html_text: str) -> List[str]:
 
 def parse_year_map(html_text: str) -> dict:
     """
-    把每個 resource UUID 對到它檔名上的民國年度。
-    做法：在每個 `/resource/<UUID>/download` 出現處的 ±400 字元內，
-    找最近的「XXX全國路名資料」字樣，XXX 即為民國年度。
-    （Vue 把每個 resource 物件序列化在同一段，UUID 與 name 距離很近。）
+    把每個 resource UUID 對到它的民國年度。
+
+    做法：以 <li class="resource-item"> 為單位切塊，每個 li 同時含
+    UUID（href 內）與 name（<span>XXX全國路名資料</span>）。
+    比「±N 字元內找最近字串」穩，因為 DOM 結構上 UUID 跟 name
+    物理上就在同一個 li 內。
+    舊版頁面用 JSON 序列化的雙引號字串比對，新版改成直接 DOM 文字
+    節點，所以這裡也跟著換。
     """
     pairs = {}
-    for m in re.finditer(r"/resource/(" + UUID_RE.pattern + r")/download", html_text):
-        u = m.group(1)
-        near = html_text[max(0, m.start() - 400): m.end() + 400]
-        nm = NAME_RE.search(near)
-        if nm:
-            pairs[u] = f"{nm.group(1)}全國路名資料"
+    for m in ITEM_RE.finditer(html_text):
+        block = m.group(1)
+        u = re.search(r"/resource/(" + UUID_RE.pattern + r")/download", block)
+        n = NAME_IN_ITEM_RE.search(block)
+        if u and n:
+            pairs[u.group(1)] = f"{n.group(1)}全國路名資料"
     return pairs
 
 
 def build_rows(html_text: str) -> List[Tuple[int, int, str, str]]:
     """
     組合 (西元年, 民國年, 顯示檔名, 下載URL) 清單，依西元年新→舊排序。
+    distribution 裡偶爾會夾帶非 opdadm 的外部連結（如 ris.gov.tw），
+    沒有 UUID 的直接略過；UUID 對不到 name 的也略過。
     """
     urls = parse_distribution(html_text)
     year_map = parse_year_map(html_text)
@@ -91,9 +103,13 @@ def build_rows(html_text: str) -> List[Tuple[int, int, str, str]]:
     for url in urls:
         m = re.search(r"/resource/(" + UUID_RE.pattern + r")/download", url)
         if not m:
+            # 外部連結（如 ris.gov.tw），沒有 UUID → 略過
             continue
         u = m.group(1)
-        name = year_map.get(u, f"(未知年度){u[:8]}")
+        name = year_map.get(u)
+        if name is None:
+            # UUID 沒對到年份（版型改變），略過而非讓程式爆炸
+            continue
         roc = int(name[:3])
         ad = roc + 1911
         rows.append((ad, roc, name, url))
