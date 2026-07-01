@@ -92,7 +92,7 @@ python scripts/main.py
 | `EMAIL_TO`    | 寄信時必填    | 收件人 Email，可多個以逗號區隔（例：`a@x.com,b@x.com`）                |
 | `CUSTOM_URL` | 選填         | 覆蓋 OpenData 下載 URL（也可從 workflow_dispatch 的 `custom_url` 輸入） |
 | `FORCE_SEND` | 選填         | `"true"` 即使無異動也寄信。`main.py` 預設 `"false"`，workflow 預設 `"true"`（但 monitor.yml 內另有 `export FORCE_SEND=true` 強制覆寫，詳見「行為細節」）。 |
-| `GITHUB_TOKEN` | 自動       | 由 Actions 自動注入；`auto_issue.py` 透過此 token 用 `gh` CLI 開 ISSUE。本機測試可改用 `HEALER_TOKEN`。 |
+| `OPENROAD_TOKEN` | 自動       | 由 Actions 自動注入；`auto_issue.py` 透過此 token 用 `gh` CLI 開 ISSUE。本機測試可改用 `HEALER_TOKEN`。 |
 | `TARGET_REPO` | 選填       | `auto_issue.py` 使用的 `owner/repo`（預設 `gcl858/OpenDataMonitor`），workflow 自動設成 `github.repository`。 |
 | `AUTO_HEAL_LABEL` | 選填   | 自訂 auto-heal ISSUE label 名稱，預設 `auto-heal`。 |
 
@@ -214,9 +214,9 @@ Actions → Year List CSV → Run workflow
 | 項目 | 值 |
 | --- | --- |
 | Permissions（`monitor.yml` `jobs.monitor.permissions`） | 新增 `issues: write` |
-| Env（`Run Monitor` step） | 新增 `GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` + `TARGET_REPO: ${{ github.repository }}` |
+| Env（`Run Monitor` step） | 新增 `OPENROAD_TOKEN: ${{ secrets.OPENROAD_TOKEN }}` + `TARGET_REPO: ${{ github.repository }}` |
 
-> 不需要任何新 Secret：`GITHUB_TOKEN` 由 GitHub Actions 自動注入，
+> 不需要任何新 Secret：`OPENROAD_TOKEN` 由 GitHub Actions 自動注入，
 > `TARGET_REPO` 由 workflow expression 帶入。
 
 ### 觸發點（`scripts/main.py`）

@@ -22,7 +22,7 @@ from typing import Optional
 from logger_util import logger
 
 REPO = os.environ.get("TARGET_REPO", "gcl858/OpenDataMonitor")
-TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("HEALER_TOKEN")
+TOKEN = os.environ.get("OPENROAD_TOKEN") or os.environ.get("HEALER_TOKEN")
 ISSUE_LABEL = os.environ.get("AUTO_HEAL_LABEL", "auto-heal")
 LABEL_COLOR = os.environ.get("AUTO_HEAL_COLOR", "d93f0b")
 LABEL_DESCRIPTION = "Auto-detected failure awaiting AI heal"
@@ -118,7 +118,7 @@ def open_issue(
         最近 N 行 log(呼叫端負責 trim)
     """
     if not TOKEN:
-        log.error("GITHUB_TOKEN/HEALER_TOKEN not set; cannot open issue")
+        log.error("OPENROAD_TOKEN/HEALER_TOKEN not set; cannot open issue")
         return None
 
     use_label = _ensure_label()

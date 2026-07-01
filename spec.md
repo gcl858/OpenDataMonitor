@@ -733,7 +733,7 @@ GitHub Actions
 | `EMAIL_TO`    | 寄信時必填    | 收件人 Email；以逗號區隔多個（例：`a@x.com,b@x.com`），`send_email.py` 會 split + strip |
 | `CUSTOM_URL`  | 選填         | 覆蓋 OpenData 下載 URL（`download.run_download()` 內 `os.environ.get("CUSTOM_URL")` 讀取） |
 | `FORCE_SEND`  | 選填         | `"true"` 強制寄信（即使 `NO_CHANGE`）。`main.py` 預設 `"false"`；workflow_dispatch 預設 `"true"`。⚠ `monitor.yml` 內另有 `export FORCE_SEND=true` 強制覆寫（見下方「行為細節」） |
-| `GITHUB_TOKEN` | 自動         | 由 Actions 自動注入；`auto_issue.py` 用 `gh` CLI 建 ISSUE 時讀取。`permissions: issues: write` 是必要條件。本機手動測試可改用 `HEALER_TOKEN`(fine-grained PAT,需 `Issues: Read and write`)。 |
+| `OPENROAD_TOKEN` | 自動         | 由 Actions 自動注入；`auto_issue.py` 用 `gh` CLI 建 ISSUE 時讀取。`permissions: issues: write` 是必要條件。本機手動測試可改用 `HEALER_TOKEN`(fine-grained PAT,需 `Issues: Read and write`)。 |
 | `TARGET_REPO`  | 選填         | `auto_issue.py` 用 `gh` CLI 時指定的 `owner/repo`；預設 `gcl858/OpenDataMonitor`。workflow 自動設成 `github.repository`。 |
 | `AUTO_HEAL_LABEL` | 選填     | 自訂 auto-heal ISSUE 的 label 名稱,預設 `auto-heal`。`AUTO_HEAL_COLOR` 可改顏色(預設 `d93f0b`)。 |
 
@@ -818,7 +818,7 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO:   ${{ secrets.EMAIL_TO }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # ← 新增:auto_issue 用
+          OPENROAD_TOKEN: ${{ secrets.OPENROAD_TOKEN }}   # ← 新增:auto_issue 用
           TARGET_REPO: ${{ github.repository }}        # ← 新增:auto_issue 用
         run: |
           export FORCE_SEND=true          # ⚠ 覆寫 workflow_dispatch 輸入
@@ -1143,7 +1143,7 @@ Actions log 的情況下被通知。
 ## auto_issue.py 行為
 
 ```text
-驗證 GITHUB_TOKEN 或 HEALER_TOKEN 已設定 → 沒設就 log error 並 return None
+驗證 OPENROAD_TOKEN 或 HEALER_TOKEN 已設定 → 沒設就 log error 並 return None
 _ensure_label() → 嘗試建立 auto-heal label (idempotent)
                  → 若失敗 (token 沒 issues:write),改用 gh label view 確認實際狀態
                  → 即使 label 不存在,也照建 issue(只是不掛 label)
@@ -1169,7 +1169,7 @@ _find_existing_open_issue(title) → 以精確標題比對 open issue,避免重�
 | --- | --- |
 | `scripts/main.py` | 新增 `_record_failure()` helper + 兩個呼叫點 |
 | `scripts/auto_issue.py` | 新建 |
-| `.github/workflows/monitor.yml` | `permissions: issues: write` + env 加 `GITHUB_TOKEN` / `TARGET_REPO` |
+| `.github/workflows/monitor.yml` | `permissions: issues: write` + env 加 `OPENROAD_TOKEN` / `TARGET_REPO` |
 | `AGENTS.md` | 新增「自動修復機制」段落 + 環境變數表更新 |
 
 ## Repository B (healer)

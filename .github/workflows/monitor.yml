@@ -53,7 +53,8 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENROAD_TOKEN: ${{ secrets.OPENROAD_TOKEN }}
+          OPENROAD_TOKEN: ${{ secrets.OPENROAD_TOKEN }}
           TARGET_REPO: ${{ github.repository }}
         run: |
           export FORCE_SEND=true

@@ -57,7 +57,8 @@ steps. **Do not reintroduce `cd scripts`.**
 | `EMAIL_TO`   | yes, to send mail | Recipient address. `send_email.py` splits on `,` and strips whitespace, so multiple recipients can be passed comma-separated. |
 | `CUSTOM_URL` | no        | Override the OpenData download URL (also exposed as the `custom_url` workflow_dispatch input) |
 | `FORCE_SEND` | no        | `"true"` to email even with no change. Default in the script is `"false"`; default in the `workflow_dispatch` UI is `"true"`. **The monitor workflow also has `export FORCE_SEND=true` in its `Run Monitor` step, which overrides the input and makes the `force_send` UI toggle a no-op.** Remove that line if you want the input to actually do something. |
-| `GITHUB_TOKEN` | no (auto) | 由 GitHub Actions workflow 內建注入(`permissions: issues: write` 後才能用);`auto_issue.py` 透過此 token 呼叫 `gh` CLI 開 ISSUE。本機手動測試可改用 `HEALER_TOKEN`(fine-grained PAT,需 `Issues: Read and write` scope)。 |
+| `OPENROAD_TOKEN` | no (auto) | 由 GitHub Actions workflow 內建注入(`permissions: issues: write` 後才能用);`auto_issue.py` 透過此 token 呼叫 `gh` CLI 開 ISSUE。本機手動測試可改用 `HEALER_TOKEN`(fine-grained PAT,需 `Issues: Read and write` scope)。 |
+| `OPENROAD_TOKEN` | no        | 透過 `monitor.yml` 的 `env` 注入到 Python scripts(可由 `os.environ.get("OPENROAD_TOKEN")` 讀取);用途自訂。注意:secret 名稱不可用 `GITHUB_` 開頭(GitHub 保留),這就是用 `OPENROAD_` 前綴的原因。 |
 | `TARGET_REPO` | no        | `auto_issue.py` 用 `gh` CLI 時指定的 `owner/repo`;預設 `gcl858/OpenDataMonitor`。workflow 會自動設成 `github.repository`,所以一般不必手動設。 |
 | `AUTO_HEAL_LABEL` | no    | 自訂 issue label 名稱,預設 `auto-heal`。`AUTO_HEAL_COLOR` 可改 label 顏色(預設 `d93f0b`)。 |
 
@@ -150,9 +151,9 @@ body adds a `⚠ 年度列表已更新` line right under the year-list header wh
 ISSUE 由 Repository B (`OpenDataMonitor-Healer`) 的 `healer.yml` 接手,
 用 oh-my-pi 自動 fork + 改 code + 開 PR,merge 仍由人工 review。
 
-Repository A 不需要任何額外 secret(`GITHUB_TOKEN` 為 workflow 內建可用),只多
+Repository A 不需要任何額外 secret(`OPENROAD_TOKEN` 為 workflow 內建可用),只多
 了一項 `permissions: issues: write`、在 `Run Monitor` step 的 env 補
-`GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` 與 `TARGET_REPO: ${{ github.repository }}`。
+`OPENROAD_TOKEN: ${{ secrets.OPENROAD_TOKEN }}` 與 `TARGET_REPO: ${{ github.repository }}`。
 
 ## Security notes worth preserving
 
