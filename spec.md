@@ -80,6 +80,7 @@ OpenDataMonitor/
 │   ├── compare.py               ← MD5 比對 + 新增列
 │   ├── send_email.py            ← Gmail 通知（多收件人 + 年度清單內文）
 │   ├── parse_road_csv.py        ← 解析 dataset/35321 頁面（stdlib only）
+│   ├── auto_issue.py            ← 失敗時自動建 GitHub ISSUE（auto-heal 機制）
 │   ├── logger_util.py           ← 共用 logger
 │   └── __pycache__/             ← Python 自動產生（被 .gitignore 涵蓋）
 │
@@ -188,37 +189,105 @@ logger = logging.getLogger("opendata-monitor")
 ```python
 import os
 import sys
+import re
+import traceback
+from datetime import datetime
+from pathlib import Path
 
 from logger_util import logger
 from download import run_download
 from compare import run_compare
+from compare_years import run_compare_years
 from send_email import run_send_email
 from parse_road_csv import fetch_html, build_rows
 
+try:
+    from auto_issue import open_issue  # type: ignore
+except ImportError:                          # 本地開發沒有 auto_issue 時不擋
+    open_issue = None                        # type: ignore
+
+# 對應 logger_util.log_file 的路徑規律 (logs/history/<UTC-date>.log)
+TODAY_LOG = Path(f"logs/history/{datetime.utcnow():%Y-%m-%d}.log")
+
+
+def _record_failure(error_type: str, exc: BaseException) -> None:
+    """把失敗打包交給 auto_issue.open_issue 建 ISSUE。錯誤一律降級為 log。"""
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    log_excerpt = (
+        TODAY_LOG.read_text(encoding="utf-8", errors="replace")
+        if TODAY_LOG.exists() else ""
+    )
+    if open_issue is not None:
+        try:
+            open_issue(error_type, str(exc), tb, log_excerpt)
+        except Exception as ie:               # noqa: BLE001
+            logger.error("auto_issue 自己也炸了: %s", ie)
+    else:
+        logger.warning("auto_issue 模組沒載入,跳過 ISSUE 通知")
+
+
 URL = "https://data.gov.tw/dataset/35321"
+DATASET_ID = "E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C"
+UUID_RE = re.compile(r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+NAME_RE = re.compile(r'"(\d{3})全國路名資料"')
+BASE = f"https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/{DATASET_ID}/resource/"
 
 
 def main() -> None:
+
+    # 解析年度列表並比對差異
+    # 任何例外都要攔下,容存入 year_error 供 email 內文使用,避免主流程中斷
+    year_rows: list | None = None
+    year_changed = False
+    year_error: str | None = None
+    year_status = "YEAR_SKIPPED"
+    try:
+        html_text = fetch_html(URL)
+        year_rows = build_rows(html_text)
+        year_status, _ = run_compare_years(year_rows)
+        year_changed = year_status == "YEAR_CHANGED"
+        logger.info(f"year status={year_status}")
+    except Exception as e:
+        year_error = traceback.format_exc()
+        logger.exception(f"year parse/compare failed: {e}")
+        _record_failure("YearParseError", e)
+
+    # 取出最新年度的下載網址,未來可自動帶入 run_download 以免手動更新
+    # build_rows() 回傳 List[Tuple[int, int, str, str]] = (西元年, 民國年, 檔名, URL)
+    last_year_csv_url = year_rows[0][3] if year_rows else None
+    logger.info(f"last year csv url={last_year_csv_url}")
+
     # 下載最新資料
     run_download()
-
-    # 比對差異
+    # 比對 CSV 差異
     result, new_rows = run_compare()
     logger.info(f"compare result={result}")
+
+
+    # 若 year 變動但 CSV 沒變,合併為 CHANGED 以觸發 workflow commit
+    if year_changed or result == "CHANGED":
+        result = "CHANGED"
+        logger.info("promote result to CHANGED due to year_rows change")
+    elif year_status=="YEAR_FIRST_RUN" or result == "FIRST_RUN":
+        result = "FIRST_RUN"
+        logger.info("first run detected")        
 
     # 輸出結果供 GitHub Actions GITHUB_OUTPUT 捕捉
     print(result)
 
     # 判斷是否寄信
     force_send = os.environ.get("FORCE_SEND", "false").lower() == "true"
-    should_send = result == "CHANGED" or force_send
 
-    # 取得年度清單（信件內文抬頭用）
-    html_text = fetch_html(URL)
-    year_rows = build_rows(html_text)
+    should_send = result == "CHANGED" or force_send or year_error is not None
+    logger.info(f"should_send={should_send} (result={result}, force_send={force_send}, year_error={year_error is not None})")
 
     if should_send:
-        run_send_email(new_rows=new_rows, year_rows=year_rows)
+        run_send_email(
+            new_rows=new_rows,
+            year_rows=year_rows,
+            year_changed=year_changed,
+            year_error=year_error,
+        )
     else:
         logger.info("skip send email")
 
@@ -228,16 +297,20 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         logger.exception(f"monitor failed: {e}")
+        _record_failure(type(e).__name__, e)
         sys.exit(1)
 ```
 
 `main.py` 對 stdout 的輸出合約：
 
-| 輸出        | 觸發條件                                | Workflow 動作    |
-| ----------- | --------------------------------------- | ---------------- |
-| `FIRST_RUN` | `data/latest.hash` 不存在               | Commit           |
-| `CHANGED`   | normalize 後 MD5 與上次不同              | Commit + Email   |
-| `NO_CHANGE` | MD5 相同                                | 略過             |
+| 輸出        | 觸發條件                                                                  | Workflow 動作    |
+| ----------- | ------------------------------------------------------------------------- | ---------------- |
+| `FIRST_RUN` | `data/latest.hash` 或 `data/year_rows.hash` 不存在                       | Commit           |
+| `CHANGED`   | normalize 後 MD5 **或** `year_rows` top-2 與上次不同                     | Commit + Email   |
+| `NO_CHANGE` | MD5 與 `year_rows` top-2 皆相同                                          | 略過             |
+
+> `year_rows` 變動但 CSV 不變時,`main.py` 會把 `result` 提升為 `CHANGED`,
+> 觸發既有的 workflow commit 邏輯,**不需要**改 workflow。
 
 ---
 
@@ -458,12 +531,37 @@ def run_send_email(new_rows=None, year_rows=None) -> None:
 * 抓取 [data.gov.tw/dataset/35321](https://data.gov.tw/dataset/35321) 頁面
 * 從 `<script type="application/ld+json">` 內的 `schema.org/Dataset.distribution[*].contentUrl`
   抽出所有年度的全國路名 CSV 下載連結
-* 對映到「XXX全國路名資料」檔名以取得民國年度
-* 依西元年由新到舊排序，輸出 `(西元年, 民國年, 檔名, URL)` 清單
+* 用 `<li class="resource-item">` 切塊配對 UUID 與「XXX全國路名資料」檔名,
+  比早期「±N 字元內找最近字串」穩(改版時不會誤配)
+* 對映到民國年度,依西元年由新到舊排序,輸出 `(西元年, 民國年, 檔名, URL)` 清單
+* 內含 `main()` / `print_table()`,可單獨 `python3 parse_road_csv.py` 或
+  `python3 parse_road_csv.py page.html` 跑(後者用本地 HTML 測試)
 * **僅使用 Python 標準庫**（`urllib`、`re`、`json`、`html.unescape`、`typing`），
   不需安裝 `pandas` / `requests`
 
 ```python
+"""
+解析 data.gov.tw 「全國路名資料」(dataset/35321) 頁面，
+抽出各年度的全國路名 CSV 下載連結，並依年度由新到舊排序輸出。
+
+資料來源結構（從實際抓回的 HTML 觀察得到）：
+  - <head> 內有一段 JSON-LD (schema.org/Dataset.distribution)，
+    列出 11 個 resource 的 contentUrl（10 個 opdadm.moi.gov.tw 的 CSV
+    + 1 個外部 ris.gov.tw 的 JSON）。
+  - 頁面 Vue 渲染時，每個 resource 都是一個 <li class="resource-item">，
+    裡面同時含 <a href=".../resource/<UUID>/download"> 與
+    <span>XXX全國路名資料</span>。把兩者放在同一個 li 區塊內配對，
+    比「±N 字元內找最近字串」穩健很多。
+  - 舊版頁面會把 resource name 序列化成 JSON 字串（雙引號包裹），
+    新版改成直接 DOM 文字節點渲染，導致原本 r'"(\d{3})全國路名資料"'
+    全部 miss → name 落入 default → int("(未知") 爆炸。
+    解法：放棄字串層比對，改從 DOM 結構解析。
+
+執行：
+  python3 parse_road_csv.py            # 直接抓網路頁面解析
+  python3 parse_road_csv.py page.html  # 解析已下載的本地 HTML
+"""
+
 import json
 import re
 import sys
@@ -474,7 +572,8 @@ from typing import List, Tuple
 URL = "https://data.gov.tw/dataset/35321"
 DATASET_ID = "E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C"
 UUID_RE = re.compile(r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
-NAME_RE = re.compile(r'"(\d{3})全國路名資料"')
+ITEM_RE = re.compile(r'<li class="resource-item"[^>]*>(.*?)</li>', re.S)
+NAME_IN_ITEM_RE = re.compile(r'>(\d{3})全國路名資料<')
 BASE = f"https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/{DATASET_ID}/resource/"
 
 
@@ -492,7 +591,10 @@ def fetch_html(source: str) -> str:
 
 
 def parse_distribution(html_text: str) -> List[str]:
-    """從 JSON-LD 抽出 distribution[*].contentUrl。"""
+    """
+    從 <script type="application/ld+json"> 內的 schema.org/Dataset JSON
+    抽出 distribution[*].contentUrl 清單（依頁面顯示順序）。
+    """
     m = re.search(
         r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',
         html_text,
@@ -505,37 +607,82 @@ def parse_distribution(html_text: str) -> List[str]:
         dataset = next((x for x in payload if x.get("@type") == "Dataset"), payload[0])
     else:
         dataset = payload
-    return [d["contentUrl"] for d in dataset.get("distribution", [])]
+    urls = [d["contentUrl"] for d in dataset.get("distribution", [])]
+    return urls
 
 
 def parse_year_map(html_text: str) -> dict:
-    """把每個 resource UUID 對到「XXX全國路名資料」檔名（XXX 為民國年度）。"""
+    """
+    把每個 resource UUID 對到它的民國年度。
+
+    做法：以 <li class="resource-item"> 為單位切塊，每個 li 同時含
+    UUID（href 內）與 name（<span>XXX全國路名資料</span>）。
+    比「±N 字元內找最近字串」穩，因為 DOM 結構上 UUID 跟 name
+    物理上就在同一個 li 內。
+    舊版頁面用 JSON 序列化的雙引號字串比對，新版改成直接 DOM 文字
+    節點，所以這裡也跟著換。
+    """
     pairs = {}
-    for m in re.finditer(r"/resource/(" + UUID_RE.pattern + r")/download", html_text):
-        u = m.group(1)
-        near = html_text[max(0, m.start() - 400): m.end() + 400]
-        nm = NAME_RE.search(near)
-        if nm:
-            pairs[u] = f"{nm.group(1)}全國路名資料"
+    for m in ITEM_RE.finditer(html_text):
+        block = m.group(1)
+        u = re.search(r"/resource/(" + UUID_RE.pattern + r")/download", block)
+        n = NAME_IN_ITEM_RE.search(block)
+        if u and n:
+            pairs[u.group(1)] = f"{n.group(1)}全國路名資料"
     return pairs
 
 
 def build_rows(html_text: str) -> List[Tuple[int, int, str, str]]:
-    """組合 (西元年, 民國年, 檔名, 下載URL) 清單，依西元年新→舊排序。"""
+    """
+    組合 (西元年, 民國年, 顯示檔名, 下載URL) 清單，依西元年新→舊排序。
+    distribution 裡偶爾會夾帶非 opdadm 的外部連結（如 ris.gov.tw），
+    沒有 UUID 的直接略過；UUID 對不到 name 的也略過。
+    """
     urls = parse_distribution(html_text)
     year_map = parse_year_map(html_text)
+
     rows = []
     for url in urls:
         m = re.search(r"/resource/(" + UUID_RE.pattern + r")/download", url)
         if not m:
+            # 外部連結（如 ris.gov.tw），沒有 UUID → 略過
             continue
         u = m.group(1)
-        name = year_map.get(u, f"(未知年度){u[:8]}")
+        name = year_map.get(u)
+        if name is None:
+            # UUID 沒對到年份（版型改變），略過而非讓程式爆炸
+            continue
         roc = int(name[:3])
         ad = roc + 1911
         rows.append((ad, roc, name, url))
     rows.sort(key=lambda x: -x[0])
     return rows
+
+
+def print_table(rows: List[Tuple[int, int, str, str]]) -> None:
+    print("全國路名資料 — CSV 下載連結（依年度新→舊）")
+    print("=" * 96)
+    header = f"{'西元':>6}  {'民國':>4}  {'檔名':<14}  下載連結"
+    print(header)
+    print("-" * 96)
+    # 只取前 3 筆，避免輸出過長
+    for ad, roc, name, url in rows[:3]:
+        print(f"{ad:>6}  {roc:>4}  {name:<14}  {url}")
+    print("=" * 96)
+    print(f"共 {len(rows)} 個檔案", flush=True)
+
+
+def main():
+    src = sys.argv[1] if len(sys.argv) > 1 else URL
+    print(f"[i] 來源: {src}")
+    html_text = fetch_html(src)
+    rows = build_rows(html_text)
+    print_table(rows)
+    sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    main()
 ```
 
 被呼叫方式：
@@ -586,6 +733,9 @@ GitHub Actions
 | `EMAIL_TO`    | 寄信時必填    | 收件人 Email；以逗號區隔多個（例：`a@x.com,b@x.com`），`send_email.py` 會 split + strip |
 | `CUSTOM_URL`  | 選填         | 覆蓋 OpenData 下載 URL（`download.run_download()` 內 `os.environ.get("CUSTOM_URL")` 讀取） |
 | `FORCE_SEND`  | 選填         | `"true"` 強制寄信（即使 `NO_CHANGE`）。`main.py` 預設 `"false"`；workflow_dispatch 預設 `"true"`。⚠ `monitor.yml` 內另有 `export FORCE_SEND=true` 強制覆寫（見下方「行為細節」） |
+| `GITHUB_TOKEN` | 自動         | 由 Actions 自動注入；`auto_issue.py` 用 `gh` CLI 建 ISSUE 時讀取。`permissions: issues: write` 是必要條件。本機手動測試可改用 `HEALER_TOKEN`(fine-grained PAT,需 `Issues: Read and write`)。 |
+| `TARGET_REPO`  | 選填         | `auto_issue.py` 用 `gh` CLI 時指定的 `owner/repo`；預設 `gcl858/OpenDataMonitor`。workflow 自動設成 `github.repository`。 |
+| `AUTO_HEAL_LABEL` | 選填     | 自訂 auto-heal ISSUE 的 label 名稱,預設 `auto-heal`。`AUTO_HEAL_COLOR` 可改顏色(預設 `d93f0b`)。 |
 
 ---
 
@@ -646,6 +796,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write                # ← 新增:讓 auto_issue.py 可用 gh CLI 開 ISSUE
 
     steps:
       - name: Checkout Repository
@@ -667,6 +818,8 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO:   ${{ secrets.EMAIL_TO }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # ← 新增:auto_issue 用
+          TARGET_REPO: ${{ github.repository }}        # ← 新增:auto_issue 用
         run: |
           export FORCE_SEND=true          # ⚠ 覆寫 workflow_dispatch 輸入
           RESULT=$(python ./scripts/main.py)
@@ -969,6 +1122,61 @@ uses: actions/setup-python@v5
 ```
 
 GitHub Actions supply-chain attack 是真實風險，請固定釘在主要版本。
+
+---
+
+# 自動修復機制 (auto-heal)
+
+當 `scripts/main.py` 在 `download` / `compare` / `parse_road_csv` 任一步拋例外,
+或在最外層遇到未預期例外時,會呼叫 `scripts/auto_issue.py` 自動建立帶
+`auto-heal` label 的 GitHub ISSUE,讓人工或自動修復端能在不 24/7 看
+Actions log 的情況下被通知。
+
+## 觸發點
+
+`scripts/main.py` 在以下三處呼叫 `_record_failure(error_type, exc)`:
+
+1. `parse_road_csv.fetch_html/build_rows/run_compare_years` 任一步失敗 → `YearParseError`
+2. `download.run_download()` / `compare.run_compare()` 等底層失敗 → 由頂層 except 攔住 → 用 `type(e).__name__` 當 error_type
+3. main 內任何其他未預期例外 → 同上
+
+## auto_issue.py 行為
+
+```text
+驗證 GITHUB_TOKEN 或 HEALER_TOKEN 已設定 → 沒設就 log error 並 return None
+_ensure_label() → 嘗試建立 auto-heal label (idempotent)
+                 → 若失敗 (token 沒 issues:write),改用 gh label view 確認實際狀態
+                 → 即使 label 不存在,也照建 issue(只是不掛 label)
+_find_existing_open_issue(title) → 以精確標題比對 open issue,避免重複
+  - 找到 → 在該 issue 補一則「同樣的失敗又出現了一次」comment
+  - 沒找到 → 用 gh issue create 建立新 issue (有 label 才傳 --label)
+所有錯誤一律降級為 log,不影響 main.py 主流程
+```
+
+## ISSUE body 範本
+
+建立出的 ISSUE 會包含:
+
+1. **標題**:`[auto-heal] {error_type}: {error_message[:80]}` — 適合用 gh 搜尋去重
+2. **時間戳 + 錯誤訊息**:摘要
+3. **Traceback**:完整 stack
+4. **最近的 log**:從 `logs/history/<UTC-date>.log` 全文 (約最後 200 行可讀)
+5. **建議修復方向**:對 AI Agent 給的 6 步 prompt
+
+## 對應修改
+
+| 檔案 | 修改 |
+| --- | --- |
+| `scripts/main.py` | 新增 `_record_failure()` helper + 兩個呼叫點 |
+| `scripts/auto_issue.py` | 新建 |
+| `.github/workflows/monitor.yml` | `permissions: issues: write` + env 加 `GITHUB_TOKEN` / `TARGET_REPO` |
+| `AGENTS.md` | 新增「自動修復機制」段落 + 環境變數表更新 |
+
+## Repository B (healer)
+
+對應的自動修復端是另一個 repo:`OpenDataMonitor-Healer`,由 oh-my-pi AI Agent
+輪詢本 repo 的 `auto-heal` label ISSUE 並自動開 PR。詳見該 repo 的
+`healer.yml`。
 
 ---
 

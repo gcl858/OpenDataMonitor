@@ -24,6 +24,7 @@ scripts/
   compare.py                     # MD5 比對 + 找出新增列
   send_email.py                  # Gmail 通知
   parse_road_csv.py              # 解析 data.gov.tw 年度清單（stdlib only）
+  auto_issue.py                  # 失敗時自動建 GitHub ISSUE（auto-heal 機制）
   __pycache__/                   # Python 自動產生（.gitignore 已涵蓋）
 data/
   latest.csv                     # 最新資料（Git 保存歷史）
@@ -91,6 +92,9 @@ python scripts/main.py
 | `EMAIL_TO`    | 寄信時必填    | 收件人 Email，可多個以逗號區隔（例：`a@x.com,b@x.com`）                |
 | `CUSTOM_URL` | 選填         | 覆蓋 OpenData 下載 URL（也可從 workflow_dispatch 的 `custom_url` 輸入） |
 | `FORCE_SEND` | 選填         | `"true"` 即使無異動也寄信。`main.py` 預設 `"false"`，workflow 預設 `"true"`（但 monitor.yml 內另有 `export FORCE_SEND=true` 強制覆寫，詳見「行為細節」）。 |
+| `GITHUB_TOKEN` | 自動       | 由 Actions 自動注入；`auto_issue.py` 透過此 token 用 `gh` CLI 開 ISSUE。本機測試可改用 `HEALER_TOKEN`。 |
+| `TARGET_REPO` | 選填       | `auto_issue.py` 使用的 `owner/repo`（預設 `gcl858/OpenDataMonitor`），workflow 自動設成 `github.repository`。 |
+| `AUTO_HEAL_LABEL` | 選填   | 自訂 auto-heal ISSUE label 名稱，預設 `auto-heal`。 |
 
 ## GitHub Secrets 設定
 
@@ -191,9 +195,41 @@ Actions → Year List CSV → Run workflow
 [dataset/35321](https://data.gov.tw/dataset/35321) 頁面上所有年度的全國路名 CSV
 下載連結。執行時不需要 Secrets，僅相依 Python 標準庫。
 
+## 自動修復機制 (auto-heal)
+
+當 monitor 抓取失敗（`download` / `compare` / `parse_road_csv` 任一步拋例外，
+或在最外層遇到未預期例外）時，會呼叫 `scripts/auto_issue.py` 自動建立帶
+`auto-heal` label 的 GitHub ISSUE。
+
+### 行為
+
+- 用 `gh` CLI 建立 ISSUE，body 包含 traceback + 最近 log + 修復建議
+- 同標題的 ISSUE 已存在時只補 comment，不重複開
+- `_ensure_label()` 先 idempotent 建立 `auto-heal` label；
+  若 token 缺 `issues: write` scope，降級為只建 issue 不掛 label，流程不中斷
+- 任何 gh 失敗一律降級為 log，絕不影響 monitor 主流程
+
+### 需要的 Workflow 改動
+
+| 項目 | 值 |
+| --- | --- |
+| Permissions（`monitor.yml` `jobs.monitor.permissions`） | 新增 `issues: write` |
+| Env（`Run Monitor` step） | 新增 `GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` + `TARGET_REPO: ${{ github.repository }}` |
+
+> 不需要任何新 Secret：`GITHUB_TOKEN` 由 GitHub Actions 自動注入，
+> `TARGET_REPO` 由 workflow expression 帶入。
+
+### 觸發點（`scripts/main.py`）
+
+1. `year_error` 區塊 catch → `_record_failure("YearParseError", e)`
+2. `if __name__ == "__main__"` 頂層 except → `_record_failure(type(e).__name__, e)`
+
+ISSUE 修復端是另一個 repo `OpenDataMonitor-Healer`，由 oh-my-pi AI Agent
+接手開 PR，merge 仍由人工 review。
+
 ## 安全注意事項
 
 - 不要將 `.env`、`*.key`、`secrets.json` commit 進 repository
 - 不要在 workflow 中 `echo` secrets
 - 僅使用已釘定主要版本的 Actions（如 `@v4`、`@v5`），避免 supply-chain attack
-- Actions 權限僅需 `contents: write`
+- Actions 權限需 `contents: write`(commit) + `issues: write`(auto-heal 自動建 ISSUE)

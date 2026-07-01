@@ -2,12 +2,40 @@ import os
 import sys
 import re
 import traceback
+from datetime import datetime
+from pathlib import Path
+
 from logger_util import logger
 from download import run_download
 from compare import run_compare
 from compare_years import run_compare_years
 from send_email import run_send_email
 from parse_road_csv import fetch_html, build_rows
+
+try:
+    from auto_issue import open_issue  # type: ignore
+except ImportError:                          # 本地開發沒有 auto_issue 時不擋
+    open_issue = None                        # type: ignore
+
+# 對應 logger_util.log_file 的路徑規律 (logs/history/<UTC-date>.log)
+TODAY_LOG = Path(f"logs/history/{datetime.utcnow():%Y-%m-%d}.log")
+
+
+def _record_failure(error_type: str, exc: BaseException) -> None:
+    """把失敗打包交給 auto_issue.open_issue 建 ISSUE。錯誤一律降級為 log。"""
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    log_excerpt = (
+        TODAY_LOG.read_text(encoding="utf-8", errors="replace")
+        if TODAY_LOG.exists() else ""
+    )
+    if open_issue is not None:
+        try:
+            open_issue(error_type, str(exc), tb, log_excerpt)
+        except Exception as ie:               # noqa: BLE001
+            logger.error("auto_issue 自己也炸了: %s", ie)
+    else:
+        logger.warning("auto_issue 模組沒載入,跳過 ISSUE 通知")
+
 
 URL = "https://data.gov.tw/dataset/35321"
 DATASET_ID = "E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C"
@@ -33,6 +61,7 @@ def main() -> None:
     except Exception as e:
         year_error = traceback.format_exc()
         logger.exception(f"year parse/compare failed: {e}")
+        _record_failure("YearParseError", e)
 
     # 取出最新年度的下載網址,未來可自動帶入 run_download 以免手動更新
     # build_rows() 回傳 List[Tuple[int, int, str, str]] = (西元年, 民國年, 檔名, URL)
@@ -79,4 +108,5 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         logger.exception(f"monitor failed: {e}")
+        _record_failure(type(e).__name__, e)
         sys.exit(1)
