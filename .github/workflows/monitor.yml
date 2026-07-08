@@ -61,7 +61,7 @@ jobs:
 
           echo "result=$RESULT" >> $GITHUB_OUTPUT
 
-      - name: Commit Files
+      - name: Commit Data
         if: |
           steps.monitor.outputs.result == 'CHANGED' ||
           steps.monitor.outputs.result == 'FIRST_RUN'
@@ -72,8 +72,25 @@ jobs:
           git config user.email github-actions@github.com
 
           git add data/
-          git add logs/
 
           git commit -m "update opendata $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
           git push
+
+      - name: Commit Logs
+        if: always()
+
+        run: |
+
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git add logs/
+
+          if ! git diff --cached --quiet; then
+
+            git commit -m "update logs $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+            git push
+
+          fi
