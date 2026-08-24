@@ -1,0 +1,19 @@
+2026-08-24 01:57:30,970 [INFO] start compare years
+2026-08-24 01:57:30,970 [INFO] current year hash=b757cd90783b73c86b519384acedebb5
+2026-08-24 01:57:30,970 [INFO] old year hash=b757cd90783b73c86b519384acedebb5
+2026-08-24 01:57:30,970 [INFO] year_rows no change
+2026-08-24 01:57:30,970 [INFO] year status=YEAR_NO_CHANGE
+2026-08-24 01:57:30,970 [INFO] last year csv url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/EB1B8C49-5C2A-42E0-8CC3-6B69B37DA66F/download
+2026-08-24 01:57:30,970 [INFO] start download
+2026-08-24 01:57:30,971 [INFO] url=https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/E2EDC47D-2D3F-4EB1-878A-4DEB6160FD4C/resource/6E8E059B-9E8E-403F-B3B7-BC6B95074C18/download
+2026-08-24 01:57:34,212 [INFO] download completed size=1456765
+2026-08-24 01:57:34,214 [INFO] start compare
+2026-08-24 01:57:34,294 [INFO] current hash=f51668b9c15ec50a0900c6f999fe865e
+2026-08-24 01:57:34,294 [INFO] old hash=f51668b9c15ec50a0900c6f999fe865e
+2026-08-24 01:57:34,294 [INFO] no change
+2026-08-24 01:57:34,295 [INFO] compare result=NO_CHANGE
+2026-08-24 01:57:34,295 [INFO] should_send=True (result=NO_CHANGE, force_send=True, year_error=False)
+2026-08-24 01:57:34,295 [INFO] start send email has_change=False year_error=False
+2026-08-24 01:57:34,295 [INFO] recipients count=3
+2026-08-24 01:57:34,295 [INFO] email body indicates no changes
+2026-08-24 01:57:36,551 [INFO] email sent
